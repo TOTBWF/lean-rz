@@ -54,6 +54,9 @@ def foldBwdM [Monad m] (f : β → α → m β) (init : β) : Bwd α → m β
   let b ← foldBwdM f init as
   f b a
 
+def foldBwd (f : β → α → β) (init : β) (as : Bwd α) : β :=
+  Id.run <| foldBwdM f init as
+
 @[simp] def foldBwdM_nil [Monad m]
   (f : β → α → m β) (init : β)
   : foldBwdM f init .nil = pure init := rfl
