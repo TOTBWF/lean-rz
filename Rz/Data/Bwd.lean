@@ -63,12 +63,10 @@ def foldBwdM [Monad m] (f : β → α → m β) (init : β) : Bwd α → m β
   (as : Bwd α) (a : α)
   : foldBwdM f init (.snoc as a) = foldBwdM f init as >>= (fun b => f b a) := rfl
 
-@[simp] def foldBwdM_append [Monad m]
+@[simp] def foldBwdM_append [Monad m] [LawfulMonad m]
   (f : β → α → m β) (init : β)
   (as bs : Bwd α)
   : foldBwdM f init (as ++ bs) = foldBwdM f init as >>= fun b => foldBwdM f b bs := by
-  induction bs <;> simp [foldBwdM]
-  case nil =>
-    sorry
+  induction bs <;> simp [foldBwdM, HAppend.hAppend, Append.append] at *
   case snoc bs b ih =>
-    sorry
+    simp [ih]
