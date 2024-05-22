@@ -5,6 +5,7 @@ import Mathlib.Tactic.Simps.Basic
 import Mathlib.Data.Part
 import Mathlib.Data.List.Indexes
 
+import Rz.Data.Bwd
 import Rz.Data.Part
 import Rz.Syntax.Magma
 
@@ -42,17 +43,17 @@ instance instPartRight [H : HasAp α β (Part γ)] : HasAp α (Part β) (Part γ
 @[simp] theorem ap_bind_right_dom [HasAp α β (Part γ)] (a : α) (b : Part β) : a ⋆ b ↓ ↔ ∃ h : b ↓, a ⋆ b.get h ↓ := by
   simp [HasAp.hAp]
 
-/-- Extends application to lists. -/
-instance [H : HasAp α β (Part α)] : HasAp α (List β) (Part α) where
-  hAp a bs := List.foldlM H.hAp a bs
+/-- Extends application to (snoc) lists. -/
+instance [H : HasAp α β (Part α)] : HasAp α (Bwd β) (Part α) where
+  hAp a bs := Bwd.foldBwdM H.hAp a bs
 
-@[simp] theorem aps_list_nil [HasAp α β (Part α)] (a : α) : a ⋆ ([] : List β) = a := by
+@[simp] theorem aps_bwd_nil [HasAp α β (Part α)] (a : α) : a ⋆ (Bwd.nil : Bwd β) = a := by
   simp [HasAp.hAp]
 
-@[simp] theorem aps_list_cons [HasAp α β (Part α)] (a : α) (b : β) (bs : List β) : a ⋆ (b :: bs) = (a ⋆ b) ⋆ bs := by
+@[simp] theorem aps_bwd_cons [HasAp α β (Part α)] (a : α) (bs : Bwd β) (b : β) : a ⋆ (bs :# b) = (a ⋆ bs) ⋆ b := by
   simp [HasAp.hAp]
 
-@[simp] theorem aps_list_append [HasAp α β (Part α)] (a : α) (as bs : List β) : a ⋆ (as ++ bs) = (a ⋆ as) ⋆ bs := by
+@[simp] theorem aps_list_append [HasAp α β (Part α)] (a : α) (as bs : Bwd β) : a ⋆ (as ++ bs) = (a ⋆ as) ⋆ bs := by
   simp [HasAp.hAp]
 
 
@@ -65,12 +66,12 @@ instance instPasApply [PAS α] : HasAp α α (Part α) where
   hAp := PAS.ap
 
 /-- Reduce a word in the free magma using `PAS.ap`. -/
-def PAS.eval [PAS α] (ρ : List α) : FreeMagma α ρ.length → Part α :=
-  FreeMagma.foldM (fun x => pure (List.get ρ x)) pure PAS.ap
+def PAS.eval [PAS α] (ρ : Bwd α) : FreeMagma α ρ.length → Part α :=
+  FreeMagma.foldM (fun x => pure (Bwd.get ρ x)) pure PAS.ap
 
-@[simp] theorem PAS.var [PAS α] (ρ : List α) (x : Fin ρ.length) : PAS.eval ρ (.var x) = ρ.get x := rfl
-@[simp] theorem PAS.eval_const [PAS α] (ρ : List α) (a : α) : PAS.eval ρ (.const a) = a := rfl
-@[simp] theorem PAS.op [PAS α] (ρ : List α) (e₁ e₂ : FreeMagma α ρ.length) : PAS.eval ρ (.op e₁ e₂) = PAS.eval ρ e₁ ⋆ PAS.eval ρ e₂ := rfl
+@[simp] theorem PAS.var [PAS α] (ρ : Bwd α) (x : Fin ρ.length) : PAS.eval ρ (.var x) = ρ.get x := rfl
+@[simp] theorem PAS.eval_const [PAS α] (ρ : Bwd α) (a : α) : PAS.eval ρ (.const a) = a := rfl
+@[simp] theorem PAS.op [PAS α] (ρ : Bwd α) (e₁ e₂ : FreeMagma α ρ.length) : PAS.eval ρ (.op e₁ e₂) = PAS.eval ρ e₁ ⋆ PAS.eval ρ e₂ := rfl
 
 
 -- @[simp] theorem PAS.eval_const_dom [PAS α] (a : α) (ρ : List α) : PAS.eval ρ (.const a) ↓ := by
@@ -81,13 +82,44 @@ def PAS.eval [PAS α] (ρ : List α) : FreeMagma α ρ.length → Part α :=
 class PCA (α : Type u) extends PAS α where
   rep : {n : Nat} → FreeMagma α (n + 1) → α
   rep_dom
-    : (ρ : List α) → (e : FreeMagma α (ρ.length + 1)) → rep e ⋆ ρ ↓
+    : (ρ : Bwd α) → (e : FreeMagma α (ρ.length + 1)) → rep e ⋆ ρ ↓
   rep_eval
-    : (a : α) → (ρ : List α) → (e : FreeMagma α (ρ.length + 1))
-    → rep e ⋆ ρ = PAS.eval (a :: ρ) e
+    : (ρ : Bwd α) → (a : α) → (e : FreeMagma α (ρ.length + 1))
+    → rep e ⋆ ρ = PAS.eval (ρ :# a) e
 
-/-- Bracket abstract using `s, k, i : α`. -/
-def PAS.abs [PAS α] (s k i : α) : FreeMagma α (n + 1) → FreeMagma α n
+/-!
+# Completeness of the SKI basis.
+-/
+
+class SKI (α : Type u) extends PAS α where
+  /-- `s` combinator; analog of the λ-term `fun x y z => (x y) (x z)`. -/
+  s : α
+  /-- `k` combinator; analog of the λ-term `fun x y => x`. -/
+  k : α
+  /-- Applying `s` to two arguments is always defined. -/
+  sDom : (a b : α) → s ⋆ a ⋆ b ↓
+  /-- Applying `k` to one argument is always defined. -/
+  kDom : (a : α) → k ⋆ a ↓
+  /-- Characterize computational behaviour of `s`. -/
+  sEval : (a b c : α) → s ⋆ a ⋆ b ⋆ c = (a ⋆ b) ⋆ (a ⋆ c)
+  /-- Characterize computational behaviour of `k`. -/
+  kEval : (a b : α) → k ⋆ a ⋆ b = a
+
+  /-- `i` combinator; can be derived from `s` and `k` -/
+  i : α := (s ⋆ k ⋆ k).get (sDom k k)
+  /-- Characterize computational behaviour of `i`. -/
+  iEval : (a : α) → i ⋆ a = a
+
+
+namespace SKI
+
+@[simp] def s_dom_1 [SKI α] (a : α) : s ⋆ a ↓ := (SKI.sDom a k).fst
+@[simp] def s_dom_2 [SKI α] (a b : α) : s ⋆ a ⋆ b ↓ := SKI.sDom a b
+@[simp] def s_dom_2_get [SKI α] (a b : α) : (s ⋆ a).get (s_dom_1 a) ⋆ b ↓ := (SKI.sDom a b).snd
+@[simp] def k_dom_1 [SKI α] (a : α) : k ⋆ a ↓ := SKI.kDom a
+
+/-- Bracket abstraction. -/
+def abs [SKI α] : FreeMagma α (n + 1) → FreeMagma α n
 | .var x =>
   if h : x = 0 then
     .const i
@@ -95,18 +127,16 @@ def PAS.abs [PAS α] (s k i : α) : FreeMagma α (n + 1) → FreeMagma α n
     .op (.const k) (.var (Fin.pred x h))
 | .const a =>
   .op (.const k) (.const a)
-| .op l r =>
-  .op (.op (.const s) (PAS.abs s k i l)) (PAS.abs s k i r)
+| .op e₁ e₂ =>
+  .op (.op (.const s) (abs e₁)) (abs e₂)
 
-/-- Abstracting `e : FreeMagma α (n + 1)` and applying to `n` arguments terminates. -/
-def PAS.eval_abs_dom
-  [PAS α]
-  (s k i : α)
-  (s_def : (a b : α) → s ⋆ a ⋆ b ↓)
-  (k_def : (a : α) → k ⋆ a ↓)
-  (ρ : List α)
-  (e : FreeMagma α (ρ.length + 1))
-  : PAS.eval ρ (PAS.abs s k i e) ↓ := by
+/-- Iterated bracket abstraction. -/
+def absn [SKI α] {m : Nat} (n : Nat) (e : FreeMagma α (m + n)) : FreeMagma α m :=
+match n with
+| 0 => e
+| n+1 => absn n (abs e)
+
+def eval_abs_dom [SKI α] (ρ : Bwd α) (e : FreeMagma α (ρ.length + 1)) : PAS.eval ρ (abs e) ↓ := by
   induction e <;> simp [abs]
   case var x =>
     cases (decEq x 0)
@@ -114,105 +144,51 @@ def PAS.eval_abs_dom
       simp [dif_pos h]
     case isFalse h =>
       simp [dif_neg h]
-      apply k_def
-  case const a =>
-    apply k_def
   case op e₁ e₂ e₁_ih e₂_ih =>
-    exists ⟨ e₁_ih, (s_def _ k).fst ⟩
+    exists e₁_ih
     exists e₂_ih
-    apply (s_def _ _).snd
+    apply s_dom_2_get
 
-/-- Iterated bracket abstraction. -/
-def PAS.absn [PAS α] {m : Nat} (s k i : α) (n : Nat) (e : FreeMagma α (m + n)) : FreeMagma α m :=
-match n with
-| 0 => e
-| n+1 => PAS.absn s k i n (PAS.abs s k i e)
-
-/-- Iterated bracket abstraction yields values. -/
-def PAS.eval_absn_dom
-  [PAS α]
-  (s k i : α)
-  (s_def : (a b : α) → s ⋆ a ⋆ b ↓)
-  (k_def : (a : α) → k ⋆ a ↓)
-  (ρ : List α)
-  (e : FreeMagma α (ρ.length + n + 1))
-  : PAS.eval ρ (PAS.absn s k i (n + 1) e) ↓ := by
+def eval_absn_dom [SKI α] (n : Nat) (ρ : Bwd α) (e : FreeMagma α (ρ.length + n + 1)) : PAS.eval ρ (absn (n + 1) e) ↓ := by
   induction n <;> simp [absn]
   case zero =>
-    exact (PAS.eval_abs_dom s k i s_def k_def ρ e)
+    exact (eval_abs_dom ρ e)
   case succ n ih =>
     apply ih
 
+def rep [SKI α] (ρ : Bwd α) (n : Nat) (e : FreeMagma α (ρ.length + n + 1)) : α :=
+  (PAS.eval ρ (absn (n + 1) e)).get (eval_absn_dom n ρ e)
 
-/-- Bracket abstract `n + 1` variables and evaluate -/
-def PAS.rep [PAS α]
-  (s k i : α)
-  (s_def : (a b : α) → (s ⋆ a ⋆ b) ↓)
-  (k_def : (a : α) → (k ⋆ a) ↓)
-  (ρ : List α) (n : Nat)
-  (e : FreeMagma α (ρ.length + n + 1)) : α :=
-  (PAS.eval ρ (PAS.absn s k i (n + 1) e)).get (PAS.eval_absn_dom s k i s_def k_def ρ e)
-
-
-def PAS.rep_dom [PAS α]
-  (s k i : α)
-  (s_def : (a b : α) → (s ⋆ a ⋆ b) ↓)
-  (k_def : (a : α) → (k ⋆ a) ↓)
-  (ρ σ : List α)
-  (e : FreeMagma α (ρ.length + σ.length + 1))
-  : (PAS.rep s k i s_def k_def ρ σ.length e) ⋆ σ ↓ := by
-  unfold rep
-  induction σ using List.list_reverse_induction <;> simp
-  case base => exact (PAS.eval_absn_dom s k i s_def k_def ρ e)
-  case ind σ a ih => 
-    apply Exists.intro
-    case w => 
-      simp [absn]
-      rw [←List.length_append σ [a]] at *
-      apply ih
-    case h => sorry
-    -- exists (ih _)
+def rep_dom [SKI α] (ρ σ : Bwd α) (e : FreeMagma α (ρ.length + σ.length + 1)) : rep ρ σ.length e ⋆ σ ↓ := by
+  induction σ <;> simp [rep, absn]
+  case nil =>
+    exact (eval_abs_dom ρ e)
+  case snoc σ a ih =>
+    exists (ih (abs e))
+    sorry
     -- sorry
-  -- case cons a σ ih => sorry -- rep ⋆ (a :: σ) = (rep ⋆ a) ⋆ σ
---   : ((PAS.rep s k i s_def k_def ρ e) ⋆ σ) ↓ := by
---   induction n generalizing ρ σ
---   case zero => sorry
---   case succ n ih => 
---     cases σ
---     case nil => sorry
---     case cons a σ => 
---       simp [rep, HasAp.hAp] at *
---       sorry
+    -- exact (eval_absn_dom _ ρ e)
+end SKI
 
--- match n, a with
--- | Nat.zero, a => by
---   contradiction
--- | Nat.succ n, a => by
---   induction a
---   case var x => 
+
+
+-- def PAS.rep_dom [PAS α]
+--   (s k i : α)
+--   (s_def : (a b : α) → (s ⋆ a ⋆ b) ↓)
+--   (k_def : (a : α) → (k ⋆ a) ↓)
+--   (ρ σ : Bwd α)
+--   (e : FreeMagma α (ρ.length + σ.length + 1))
+--   : (PAS.rep s k i s_def k_def ρ σ.length e) ⋆ σ ↓ := by
+--   unfold rep
+--   induction σ
+--   case nil =>
+--     simp
+--     exact (PAS.eval_absn_dom s k i s_def k_def ρ e)
+--   case snoc σ a ih =>
+--     simp [absn]
 --     sorry
---   case const a =>
---     have 
---     -- simp [HasAp.hAp, PAS.rep, PAS.abs]
---     -- ap Exists.intro
---     -- · sorry
---     -- · sorry
---   case op l r l_ih r_ih =>
---     have l_def : (rep s k i l) ↓ := by
---       ap Part.Dom.of_bind
---       exact l_ih
---     have r_def : (rep s k i r) ↓ := by
---       ap Part.Dom.of_bind
---       exact r_ih
---     have lr_def : (rep s k i (.op l r)) ↓ := by
---       sorry
---     exists lr_def
---     simp [HasAp.hAp, PAS.rep]
---     sorry
---     -- simp [HasAp.hAp]
---     -- ap Exists.intro
---     -- · sorry
---     -- · simp [PAS.rep]
+--     -- exists (ih (abs s k i e))
+    -- sorry
 
 -- def PCA.k [PCA α] : α :=
 --   PCA.rep FreeMagma.k
