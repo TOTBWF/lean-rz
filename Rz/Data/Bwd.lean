@@ -4,6 +4,7 @@
 
 universe u v w
 variable {α β γ : Type u}
+variable {m : Type u → Type v}
 
 /-- Backwards lists. -/
 inductive Bwd (α : Type u) : Type u where

@@ -7,15 +7,17 @@ about substitution, inspired by `autosubst`.
 
 universe u v w
 
+variable {α β γ : Type u}
+
 /-- Notation typeclass for `α [ σ ]`. -/
 class HAct (σ : Type u) (α : Type v) (β : outParam (Type w)) where
   hAct : σ → α → β
 
 /-- Notation typeclass for `σ ; α` -/
-class HExtend (σ : Type u) (α : Type v) (δ : outParam (Type w)) where
-  hExtend : σ → α → δ
+class HExtend (σ : Type u) (α : Type v) where
+  hExtend : σ → α → σ
 
-notation α:65 " [ " σ:max " ]" => HAct.hAct σ α
+notation α:65 " [ " σ:min " ]" => HAct.hAct σ α
 infixl:65 " ; " => HExtend.hExtend
 
 /-
@@ -67,7 +69,7 @@ protected def extend (ξ : Rn) (n : Nat) : Rn :=
   | 0 => n
   | x+1 => ξ x
 
-instance : HExtend Rn Nat Rn where
+instance : HExtend Rn Nat where
   hExtend := Rn.extend
 
 @[simp] theorem comp_id (ξ : Rn) : Rn.comp ξ Rn.id = ξ := rfl
@@ -88,7 +90,7 @@ end Rn
 
 def Sb (α : Type u) : Type u := Nat → α
 
-class HSubst (α : Type u) (β : Type v) (γ : outParam (Type v)) where
+class HSubst (α : Type u) (β : Type v) (γ : outParam (Type w)) where
   hSubst : α → Sb β → γ
 
 class Subst (α : Type u) where
@@ -106,8 +108,8 @@ instance [HRename α β] : HSubst α Nat β where
   hSubst a ρ := HRename.hRename a ρ
 
 @[default_instance]
-instance [HSubst α β γ] : HAct α (Sb β) γ where
-  hAct a σ := HSubst.hSubst a σ
+instance [HSubst α β γ] : HAct (Sb β) α γ where
+  hAct σ a := HSubst.hSubst a σ
 
 namespace Sb
 
@@ -143,7 +145,10 @@ def extend (σ : Sb α) (e : α) : Sb α :=
   | 0 => e
   | x+1 => σ x
 
-instance : HExtend (Sb α) α (Sb α) where
+instance : HExtend (Sb α) α where
   hExtend σ e := Sb.extend σ e
+
+instance [Subst α] [Var α] : HAct α α α where
+  hAct σ e := Subst.subst e (Sb.id ; σ)
 
 end Sb
