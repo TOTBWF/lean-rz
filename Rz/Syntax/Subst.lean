@@ -53,7 +53,7 @@ protected def wk (i : Nat) (n : Nat) : Rn :=
   fun x => if x < i then x else x + n
 
 /-- Extend a renaming to operate under `n` additional variables. -/
-protected def under (ξ : Rn) (n : Nat) : Rn :=
+protected def shift (ξ : Rn) (n : Nat) : Rn :=
   fun x =>
     if x < n then
       x
@@ -74,9 +74,12 @@ instance : HExtend Rn Nat Rn where
 @[simp] theorem id_comp (ξ : Rn) : Rn.comp Rn.id ξ = ξ := rfl
 @[simp] theorem comp_assoc (ξ ρ σ : Rn) : Rn.comp (Rn.comp ξ ρ) σ = Rn.comp ξ (Rn.comp ρ σ) := rfl
 
-@[simp] theorem wk_under (ξ : Rn) (n : Nat) : Rn.comp (Rn.wk 0 n) (Rn.under ξ n) = Rn.comp ξ (Rn.wk 0 n) := by
- simp [Rn.wk, Rn.comp]
- sorry
+@[simp] theorem wk_shift (ξ : Rn) (n : Nat) : Rn.comp (Rn.wk 0 n) (Rn.shift ξ n) = Rn.comp ξ (Rn.wk 0 n) := by
+  ext i
+  simp [Rn.wk, Rn.comp, Rn.shift]
+  repeat (all_goals split)
+  any_goals (first | omega | simp)
+
 end Rn
 
 /-
