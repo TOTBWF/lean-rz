@@ -22,21 +22,23 @@ class HasEval (α : Type u) where
 
 def HasEval.Undefined [HasEval α] (ρ : Bwd α) (e : FreeMagma α) : Prop := (a : α) → ¬ (HasEval.Eval ρ e a)
 def HasEval.Defined [HasEval α] (ρ : Bwd α) (e : FreeMagma α) : Prop := ∃ (a : α), HasEval.Eval ρ e a
-def HasEval.Refines [HasEval α] (ρ : Bwd α) (e₁ e₂ : FreeMagma α) : Prop := (a : α) → HasEval.Eval ρ e₁ a → HasEval.Eval ρ e₂ a
-def HasEval.Equiv [HasEval α] (ρ : Bwd α) (e₁ e₂ : FreeMagma α) : Prop := HasEval.Refines ρ e₁ e₂ ∧ HasEval.Refines ρ e₂ e₁
+def HasEval.Refines [HasEval α] (ρ₁ ρ₂ : Bwd α) (e₁ e₂ : FreeMagma α) : Prop := (a : α) → HasEval.Eval ρ₁ e₂ a → HasEval.Eval ρ₂ e₁ a
+def HasEval.Equiv [HasEval α] (ρ₁ ρ₂ : Bwd α) (e₁ e₂ : FreeMagma α) : Prop := HasEval.Refines ρ₂ ρ₁ e₂ e₁ ∧ HasEval.Refines ρ₁ ρ₂ e₁ e₂
 
 syntax term " ⊢ " magma " ↑" : term
 syntax term " ⊢ " magma " ↓" : term
 syntax term " ⊢ " magma " ⇓ " term:40 : term
-syntax term " ⊢ " magma " ≤ " withPosition(magma) : term
-syntax term " ⊢ " magma " ≃ " withPosition(magma) : term
+syntax term " ⊢ " magma " ≤ " term:max " ⊢ " withPosition(magma) : term
+syntax term " ⊢ " magma " ≃ " term:max " ⊢ " withPosition(magma) : term
+
+-- ρ₁ ⊢ e₁ ≤ ρ₂ ⊢ e₂
 
 macro_rules
 | `($ρ:term ⊢ $e:magma ↑) => `(HasEval.Undefined $ρ («magma» $e))
 | `($ρ:term ⊢ $e:magma ↓) => `(HasEval.Defined $ρ («magma» $e))
 | `($ρ:term ⊢ $e:magma ⇓ $a:term) => `(HasEval.Eval $ρ («magma» $e) $a)
-| `($ρ:term ⊢ $e₁:magma ≤ $e₂:magma) => `(HasEval.Refines $ρ («magma» $e₁) («magma» $e₂))
-| `($ρ:term ⊢ $e₁:magma ≃ $e₂:magma) => `(HasEval.Equiv $ρ («magma» $e₁) («magma» $e₂))
+| `($ρ₁:term ⊢ $e₁:magma ≤ $ρ₂:term ⊢ $e₂:magma) => `(HasEval.Refines $ρ₂ $ρ₁ («magma» $e₂) («magma» $e₁))
+| `($ρ₁:term ⊢ $e₁:magma ≃ $ρ₂:term ⊢ $e₂:magma) => `(HasEval.Equiv $ρ₁ $ρ₂ («magma» $e₁) («magma» $e₂))
 
 /-- Partial Applicative Structures. -/
 class PAS (α : Type u) extends HasEval α where
@@ -45,7 +47,7 @@ class PAS (α : Type u) extends HasEval α where
   var_eval : (ρ : Bwd α) → (x : Fin ρ.length) → ρ ⊢ $(FreeMagma.var x) ⇓ ρ.get x
   var_oob : (ρ : Bwd α) → (x : Nat) → ρ.length ≤ x → ρ ⊢ $(FreeMagma.var x) ↑
   const_eval : (ρ : Bwd α) → (a : α) → ρ ⊢ a ⇓ a
-  ap_eval : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → {a₁ a₂ : α} → ρ ⊢ e₁ ⇓ a₁ → ρ ⊢ e₂ ⇓ a₂ → ρ ⊢ e₁ e₂ ≃ a₁ a₂
+  ap_eval : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → {a₁ a₂ : α} → ρ ⊢ e₁ ⇓ a₁ → ρ ⊢ e₂ ⇓ a₂ → ρ ⊢ e₁ e₂ ≃ ρ ⊢ a₁ a₂
   ap_left_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₁ ↓
   ap_right_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₂ ↓
 
@@ -68,7 +70,7 @@ class PCA (α : Type u) extends PAS α where
   /-- Bracket abstraction yields a value. -/
   abs_defined : (ρ : Bwd α) → (e : FreeMagma α) → ρ ⊢ $(abs e) ↓
   /-- Bracket abstraction has a β-law. -/
-  abs_eval : (ρ : Bwd α) → (a : α) → (e : FreeMagma α) → ρ ⊢ $(abs e) a ≃ $(e [ a ])
+  abs_eval : (ρ : Bwd α) → (a : α) → (e : FreeMagma α) → ρ ⊢ $(abs e) a ≃ (ρ :# a) ⊢ e
 
 /-!
 # SKI forms a basis for PCAs (and v.v.)
@@ -80,7 +82,7 @@ class SKI (α : Type u) extends PAS α where
   i : α
   s_defined_2 : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ ↓ → ρ ⊢ e₂ ↓ → ρ ⊢ s e₁ e₂ ↓
   k_defined : {ρ : Bwd α} → {e : FreeMagma α} → ρ ⊢ e ↓ → ρ ⊢ k e ↓
-  s_eval : (ρ : Bwd α) → (e₁ e₂ e₃ : FreeMagma α) → ρ ⊢ s e₁ e₂ e₃ ≃ (e₁ e₂) (e₁ e₃)
+  s_eval : (ρ : Bwd α) → (e₁ e₂ e₃ : FreeMagma α) → ρ ⊢ s e₁ e₂ e₃ ≃ ρ ⊢ (e₁ e₂) (e₁ e₃)
   k_eval : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → {a : α} → ρ ⊢ e₁ ⇓ a → ρ ⊢ e₂ ↓ → ρ ⊢ k e₁ e₂ ⇓ a
   i_eval : {ρ : Bwd α} → {e : FreeMagma α} → {a : α} → ρ ⊢ e ⇓ a → ρ ⊢ i e ⇓ a
 
