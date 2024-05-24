@@ -211,7 +211,9 @@ def toPAS' (α) [PAS α] : PAS' α where
   ap a₁ a₂ v := .nil ⊢ a₁ a₂ ⇓ v
   ap_functional := eval_functional
 
-theorem toPAS'_eval [PAS α] : (toPAS' α).Eval = HasEval.Eval := by
+theorem toPAS'_toPAS [inst : PAS α] : @instPASOfPAS' _ (toPAS' α) = inst := by
+  suffices (toPAS' α).Eval = HasEval.Eval by
+    let {..} := inst; unfold instPASOfPAS' instHasEvalOfPAS'; congr
   ext ρ e v; constructor <;> intro H
   · induction e generalizing v with simp [PAS'.Eval] at H
     | const => cases H; apply const_eval
@@ -238,7 +240,7 @@ class PCA (α : Type u) extends PAS α where
   /-- Bracket abstraction yields a value. -/
   abs_defined : (ρ : Bwd α) → (e : FreeMagma α) → ρ ⊢ $(abs e) ↓
   /-- Bracket abstraction has a β-law. -/
-  abs_eval : (ρ : Bwd α) → (a : α) → (e : FreeMagma α) → (ρ :# a) ⊢ e ≤ ρ ⊢ $(abs e) a
+  abs_eval : (ρ : Bwd α) → (a : α) → (e : FreeMagma α) → ρ ⊢ $(abs e) a ≃ (ρ :# a) ⊢ e
 
 namespace PCA
 
