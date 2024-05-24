@@ -79,15 +79,14 @@ class SKI (α : Type u) extends PAS α where
   k : α
   i : α
   s_defined_2 : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ ↓ → ρ ⊢ e₂ ↓ → ρ ⊢ s e₁ e₂ ↓
-  k_defined_const : (ρ : Bwd α) → (a : α) → ρ ⊢ k a ↓
-  s_eval_const : (ρ : Bwd α) → (a b c : α) → ρ ⊢ s a b c ≃ (a b) (a c)
-  k_eval_const : (ρ : Bwd α) → (a b : α) → ρ ⊢ k a b ⇓ a
-  i_eval_const : (ρ : Bwd α) → (a : α) → ρ ⊢ i a ⇓ a
+  k_defined : {ρ : Bwd α} → {e : FreeMagma α} → ρ ⊢ e ↓ → ρ ⊢ k e ↓
+  s_eval : (ρ : Bwd α) → (e₁ e₂ e₃ : FreeMagma α) → ρ ⊢ s e₁ e₂ e₃ ≃ (e₁ e₂) (e₁ e₃)
+  k_eval : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → {a : α} → ρ ⊢ e₁ ⇓ a → ρ ⊢ e₂ ↓ → ρ ⊢ k e₁ e₂ ⇓ a
+  i_eval : {ρ : Bwd α} → {e : FreeMagma α} → {a : α} → ρ ⊢ e ⇓ a → ρ ⊢ i e ⇓ a
 
 namespace SKI
 
 open SKI
-
 
 theorem s_defined_1
   [A : SKI α]
@@ -95,33 +94,6 @@ theorem s_defined_1
   (e_defined : ρ ⊢ e ↓)
   : ρ ⊢ A.s e ↓ :=
   PAS.ap_left_defined (s_defined_2 e_defined (PAS.const_defined ρ k))
-  -- have ⟨ a , a_eval ⟩ := e_defined
-  -- apply PAS.ap_defined
-  -- · apply PAS.const_eval
-  -- · exact a_eval
-  -- · apply s_defined_1_const
-
--- theorem s_defined_2
---   [A : SKI α]
---   {ρ : Bwd α} {e₁ e₂ : FreeMagma α}
---   (e₁_defined : ρ ⊢ e₁ ↓) (e₂_defined : ρ ⊢ e₂ ↓)
---   : ρ ⊢ A.s e₁ e₂ ↓ :=
---   have ⟨ a₁ , a₁_eval ⟩ := e₁_defined
---   have ⟨ a₂ , a₂_eval ⟩ := e₂_defined
---   have ⟨ a₃ , a₃_eval ⟩ := s_defined_2_const ρ a₁ a₂
---   have cool := (PAS.ap_eval _ _)
---   -- ⟨ a₃ , (PAS.ap_eval ((PAS.ap_eval (PAS.const_eval ρ A.s) a₁_eval).2 _ _) a₂_eval).2 a₃ _ ⟩
---   -- have ⟨ a₁ , a₁_eval ⟩ := e₁_defined
---   -- have ⟨ a₂ , a₂_eval ⟩ := e₂_defined
---   -- apply PAS.ap_defined
---   -- · sorry
---   -- · sorry
---   -- · sorry
---   -- PAS.ap_defined a₁_eval a₂_eval _
---   -- apply PAS.ap_defined
---   -- · exact a₁_eval
---   -- · sorry
---   -- · sorry
 
 
 @[simp] def abs [SKI α] : FreeMagma α → FreeMagma α
@@ -138,13 +110,15 @@ def abs_defined [SKI α] (ρ : Bwd α) (e : FreeMagma α) (h : e.fv ≤ ρ.lengt
     apply PAS.ap_defined
     · apply PAS.const_eval
     · apply PAS.var_eval ρ ⟨ n , Nat.le_of_succ_le_succ h ⟩
-    · apply SKI.k_defined_const
+    · apply SKI.k_defined
+      apply PAS.const_defined
   | .const a =>
     simp
     apply PAS.ap_defined
     · apply PAS.const_eval
     · apply PAS.const_eval
-    · apply SKI.k_defined_const
+    · apply SKI.k_defined
+      apply PAS.const_defined
   | .ap e₁ e₂ =>
     simp
     apply s_defined_2
