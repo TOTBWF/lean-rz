@@ -6,7 +6,8 @@ import Lean
 import Rz.Data.Bwd
 import Rz.Syntax.Subst
 
-open Lean.Syntax
+open Lean Syntax Meta Elab
+open Tactic.Simp
 
 universe u v w
 variable {α β γ : Type u}
@@ -17,6 +18,18 @@ inductive FreeMagma (α : Type u) : Type u where
 | ap : FreeMagma α → FreeMagma α → FreeMagma α
 
 namespace FreeMagma
+
+@[simp] def fv : FreeMagma α → Nat
+| .var x => x + 1
+| .const _ => 0
+| .ap e₁ e₂ => Nat.max (fv e₁) (fv e₂)
+
+theorem fv_const_le (a : α) (n : Nat) : (const a).fv ≤ n := Nat.zero_le _
+
+theorem fv_left_le_fv_ap (e₁ e₂ : FreeMagma α) : e₁.fv ≤ (ap e₁ e₂).fv := Nat.le_max_left _ _
+
+theorem fv_right_le_fv_ap (e₁ e₂ : FreeMagma α) : e₂.fv ≤ (ap e₁ e₂).fv := Nat.le_max_right _ _
+
 
 def rename (e : FreeMagma α) (ρ : Rn) : FreeMagma α :=
 match e with
@@ -56,6 +69,18 @@ instance : MagmaSyntax (FreeMagma α) α where
 instance : MagmaSyntax α α where
   quote := .const
 
+syntax (name := term_reduce) "reduce% " ident term:max* : term
+
+@[term_elab term_reduce] def elabReduce : Term.TermElab := fun stx expectedType? => do
+  match stx with
+  | `(reduce% $f $[$args]*) =>
+    -- Note: this doesn't seem to add terminfo to `f`
+    let some f ← Term.resolveId? f (withInfo := true) | throwUnknownConstant f.getId
+    let e ← Term.elabAppArgs f #[] (args.map .stx) expectedType?
+      (explicit := false) (ellipsis := false)
+    reduce e
+  | _ => throwUnsupportedSyntax
+
 declare_syntax_cat magma
 syntax ident : magma
 syntax "$(" term:min ")" : magma
@@ -64,8 +89,8 @@ syntax "(" magma:min ")" : magma
 syntax "«magma»" magma : term
 
 macro_rules
-| `(«magma» $x:ident ) => `(MagmaSyntax.quote $x)
-| `(«magma» $($x:term) ) => `(MagmaSyntax.quote $x)
+| `(«magma» $x:ident ) => `(reduce% MagmaSyntax.quote $x)
+| `(«magma» $($x:term) ) => `(reduce% MagmaSyntax.quote $x)
 | `(«magma» $a:magma $args:magma*) => do
     Array.foldlM (β := Term) (fun acc arg => `(FreeMagma.ap $acc («magma» $arg))) (← `(«magma» $a)) args
 | `(«magma» ( $a:magma )) => `(«magma» $a)
