@@ -57,7 +57,7 @@ instance : Subst (FreeMagma α) where
   subst := subst
 
 instance : HAct α (FreeMagma α) (FreeMagma α) where
-  hAct a e := subst e (Sb.id ; (FreeMagma.const a))
+  hAct a e := subst e (Sb.id ;; (FreeMagma.const a))
 
 /-!
 # Syntax for magmas

@@ -18,7 +18,7 @@ class HExtend (σ : Type u) (α : Type v) where
   hExtend : σ → α → σ
 
 notation α:65 " [ " σ:min " ]" => HAct.hAct σ α
-infixl:65 " ; " => HExtend.hExtend
+infixl:65 " ;; " => HExtend.hExtend
 
 /-
 # Renamings
@@ -149,6 +149,6 @@ instance : HExtend (Sb α) α where
   hExtend σ e := Sb.extend σ e
 
 instance [Subst α] [Var α] : HAct α α α where
-  hAct σ e := Subst.subst e (Sb.id ; σ)
+  hAct σ e := Subst.subst e (Sb.id ;; σ)
 
 end Sb

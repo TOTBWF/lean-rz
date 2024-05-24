@@ -45,7 +45,7 @@ class PAS (α : Type u) extends HasEval α where
   /-- Resolving a successor variable requires us to look up in the tail of the environment. -/
   var_succ_eval : (ρ : Bwd α) → (a : α) → (n : Nat) → (ρ :# a) ⊢ `(n+1) ≃ ρ ⊢ `(n)
   /-- Resolving an out-of-bounds variable diverges. -/
-  var_zero_diverge : (n : Nat) → (Bwd.nil : Bwd α) ⊢ `(n+1) ↑
+  var_zero_diverge : (n : Nat) → (Bwd.nil : Bwd α) ⊢ `(n) ↑
   /-- Constants reduce to themselves. -/
   const_eval : (ρ : Bwd α) → (a : α) → ρ ⊢ a ⇓ a
   /-- Applications are evaluated by evaluating both sides.
@@ -55,6 +55,46 @@ class PAS (α : Type u) extends HasEval α where
   ap_left_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₁ ↓
   /-- If an application is defined, then so is the right argument. -/
   ap_right_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₂ ↓
+
+/-- Partial Applicative Structures. -/
+class PAS' (α : Type u) where
+  ap : α → α → α → Prop
+  /-- The evaluation relation is functional. -/
+  ap_functional : {a₁ a₂ v₁ v₂ : α} → ap a₁ a₂ v₁ → ap a₁ a₂ v₂ → v₁ = v₂
+
+def PAS'.Eval [PAS' α] : (ρ : Bwd α) → FreeMagma α → α → Prop
+  | ρ, .var i, v => ∃ h, ρ.get ⟨i, h⟩ = v
+  | _, .const a, v => a = v
+  | ρ, .ap e₁ e₂, v => ∃ v₁ v₂, Eval ρ e₁ v₁ ∧ Eval ρ e₂ v₂ ∧ PAS'.ap v₁ v₂ v
+
+instance [PAS' α] : HasEval α := ⟨PAS'.Eval⟩
+
+theorem PAS'.eval_functional [PAS' α] {ρ e} {a a' : α}
+    (h1 : Eval ρ e a) (h2 : Eval ρ e a') : a = a' := by
+  induction e generalizing a a' with simp [HasEval.Eval, PAS'.Eval] at h1 h2
+  | var => obtain ⟨_, rfl⟩ := h1; obtain ⟨_, rfl⟩ := h2; rfl
+  | const => exact h1 ▸ h2
+  | ap _ _ ih1 ih2 =>
+    obtain ⟨_, ev11, _, ev12, h1⟩ := h1
+    obtain ⟨_, ev21, _, ev22, h2⟩ := h2
+    cases ih1 ev11 ev21
+    cases ih2 ev12 ev22
+    exact PAS'.ap_functional h1 h2
+
+instance [PAS' α] : PAS α where
+  eval_functional := PAS'.eval_functional
+  var_zero_eval _ _ := ⟨Nat.succ_pos _, rfl⟩
+  var_succ_eval _ _ _ :=
+    ⟨fun _ ⟨h, eq⟩ => ⟨Nat.lt_of_succ_lt_succ h, eq⟩, fun _ ⟨h, eq⟩ => ⟨Nat.succ_lt_succ h, eq⟩⟩
+  var_zero_diverge := nofun
+  const_eval _ _ := rfl
+  ap_eval h1 h2 := by
+    refine ⟨fun v' ⟨a₁', a₂', e1, e2, H⟩ => ⟨_, _, rfl, rfl, ?_⟩, fun v' ⟨_, _, rfl, rfl, H⟩ => ⟨_, _, h1, h2, H⟩⟩
+    cases PAS'.eval_functional h1 e1
+    cases PAS'.eval_functional h2 e2
+    exact H
+  ap_left_defined := fun ⟨_, _, _, h, _⟩ => ⟨_, h⟩
+  ap_right_defined := fun ⟨_, _, _, _, h, _⟩ => ⟨_, h⟩
 
 namespace PAS
 
@@ -86,10 +126,18 @@ theorem var_get_eval
       simp [h]
       apply PAS.var_zero_eval
     else
-      -- apply (PAS.var_pred_eval_ne_zero ρ a x h).2
-      sorry
-      -- rw [Bwd.get_snoc_pred_ne_zero ρ a x h]
-      -- apply PAS.var_get_eval
+      apply (PAS.var_pred_eval_ne_zero ρ a x (Fin.val_ne_of_ne h)).2
+      rw [Bwd.get_snoc_pred_ne_zero ρ a x h]
+      apply PAS.var_get_eval (x := x.pred h)
+
+theorem var_of_converge [PAS α] (ρ : Bwd α) (x : Nat) : ρ ⊢ `(x) ↓ → x < ρ.length := by
+  rintro ⟨v, H⟩
+  induction ρ generalizing x with
+  | nil => cases var_zero_diverge _ _ H
+  | snoc ρ a IH =>
+    match x with
+    | 0 => simp
+    | x + 1 => exact Nat.succ_lt_succ <| IH _ <| (var_succ_eval _ _ _).1 _ H
 
 /-!
 ## Evaluation Lemmas
@@ -159,6 +207,28 @@ theorem ap_defined
     let ⟨ w , h ⟩ := v_def
     ⟨ w , (ap_eval e₁_def e₂_def).2 w h ⟩
 
+def toPAS' (α) [PAS α] : PAS' α where
+  ap a₁ a₂ v := .nil ⊢ a₁ a₂ ⇓ v
+  ap_functional := eval_functional
+
+theorem toPAS'_eval [PAS α] : (toPAS' α).Eval = HasEval.Eval := by
+  ext ρ e v; constructor <;> intro H
+  · induction e generalizing v with simp [PAS'.Eval] at H
+    | const => cases H; apply const_eval
+    | var => obtain ⟨_, rfl⟩ := H; exact var_get_eval ρ ⟨_, _⟩
+    | ap _ _ ih1 ih2 =>
+      obtain ⟨_, h1, _, h2, h3⟩ := H
+      exact (ap_eval (ih1 _ h1) (ih2 _ h2)).2 _ h3
+  · induction e generalizing v with simp [PAS'.Eval]
+    | const => exact eval_functional (const_eval ..) H
+    | var =>
+      have h := var_of_converge _ _ ⟨_, H⟩
+      exact ⟨h, eval_functional (var_get_eval _ ⟨_, h⟩) H⟩
+    | ap _ _ ih1 ih2 =>
+      have ⟨a₁, h1⟩ := ap_left_defined ⟨_, H⟩
+      have ⟨a₂, h2⟩ := ap_right_defined ⟨_, H⟩
+      exact ⟨_, ih1 _ h1, _, ih2 _ h2, (ap_eval h1 h2).1 _ H⟩
+
 end PAS
 
 /-- Partial Combinatory Algebras. -/
@@ -168,7 +238,7 @@ class PCA (α : Type u) extends PAS α where
   /-- Bracket abstraction yields a value. -/
   abs_defined : (ρ : Bwd α) → (e : FreeMagma α) → ρ ⊢ $(abs e) ↓
   /-- Bracket abstraction has a β-law. -/
-  abs_eval : (ρ : Bwd α) → (a : α) → (e : FreeMagma α) → ρ ⊢ $(abs e) a ≃ (ρ :# a) ⊢ e
+  abs_eval : (ρ : Bwd α) → (a : α) → (e : FreeMagma α) → (ρ :# a) ⊢ e ≤ ρ ⊢ $(abs e) a
 
 namespace PCA
 
