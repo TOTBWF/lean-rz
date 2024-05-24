@@ -22,7 +22,7 @@ class HasEval (α : Type u) where
 
 def HasEval.Undefined [HasEval α] (ρ : Bwd α) (e : FreeMagma α) : Prop := (a : α) → ¬ (HasEval.Eval ρ e a)
 def HasEval.Defined [HasEval α] (ρ : Bwd α) (e : FreeMagma α) : Prop := ∃ (a : α), HasEval.Eval ρ e a
-def HasEval.Refines [HasEval α] (ρ₁ ρ₂ : Bwd α) (e₁ e₂ : FreeMagma α) : Prop := (a : α) → HasEval.Eval ρ₁ e₂ a → HasEval.Eval ρ₂ e₁ a
+def HasEval.Refines [HasEval α] (ρ₁ ρ₂ : Bwd α) (e₁ e₂ : FreeMagma α) : Prop := (a : α) → HasEval.Eval ρ₂ e₂ a → HasEval.Eval ρ₁ e₁ a
 def HasEval.Equiv [HasEval α] (ρ₁ ρ₂ : Bwd α) (e₁ e₂ : FreeMagma α) : Prop := HasEval.Refines ρ₂ ρ₁ e₂ e₁ ∧ HasEval.Refines ρ₁ ρ₂ e₁ e₂
 
 syntax term " ⊢ " magma " ↑" : term
@@ -43,13 +43,20 @@ macro_rules
 /-- Partial Applicative Structures. -/
 class PAS (α : Type u) extends HasEval α where
   /-- The evaluation relation is functional. -/
-  eval_functional : (ρ : Bwd α) → (e : FreeMagma α) → (a a' : α) → ρ ⊢ e ⇓ a → (ρ ⊢ e ⇓ a') → a = a'
+  eval_functional : (ρ : Bwd α) → (e : FreeMagma α) → (a a' : α) → ρ ⊢ e ⇓ a → ρ ⊢ e ⇓ a' → a = a'
   var_eval : (ρ : Bwd α) → (x : Fin ρ.length) → ρ ⊢ $(FreeMagma.var x) ⇓ ρ.get x
   var_oob : (ρ : Bwd α) → (x : Nat) → ρ.length ≤ x → ρ ⊢ $(FreeMagma.var x) ↑
   const_eval : (ρ : Bwd α) → (a : α) → ρ ⊢ a ⇓ a
   ap_eval : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → {a₁ a₂ : α} → ρ ⊢ e₁ ⇓ a₁ → ρ ⊢ e₂ ⇓ a₂ → ρ ⊢ e₁ e₂ ≃ ρ ⊢ a₁ a₂
   ap_left_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₁ ↓
   ap_right_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₂ ↓
+
+theorem PAS.const_eval_eq
+  [PAS α]
+  (ρ : Bwd α)
+  (a a' : α) (a_eval : ρ ⊢ a ⇓ a')
+  : a = a' :=
+    eval_functional ρ (.const a) a a' (const_eval ρ a) a_eval
 
 theorem PAS.const_defined [PAS α] (ρ : Bwd α) (a : α) : ρ ⊢ a ↓ :=
   ⟨ a , PAS.const_eval ρ a ⟩
@@ -97,6 +104,11 @@ theorem s_defined_1
   : ρ ⊢ A.s e ↓ :=
   PAS.ap_left_defined (s_defined_2 e_defined (PAS.const_defined ρ k))
 
+theorem i_eval_inv
+  [A : SKI α]
+  {ρ : Bwd α} {e : FreeMagma α} {a : α}
+  (h : ρ ⊢ A.i e ⇓ a)
+  : ρ ⊢ e ⇓ a := by sorry
 
 @[simp] def abs [SKI α] : FreeMagma α → FreeMagma α
 | .var 0 => .const i
@@ -128,6 +140,20 @@ def abs_defined [SKI α] (ρ : Bwd α) (e : FreeMagma α) (h : e.fv ≤ ρ.lengt
       exact SKI.abs_defined ρ e₁ this
     · have : e₂.fv ≤ ρ.length + 1 := Trans.trans (FreeMagma.fv_right_le_fv_ap e₁ e₂) h
       exact SKI.abs_defined ρ e₂ this
+
+def abs_refines_le [SKI α] (ρ : Bwd α) (a : α) (e : FreeMagma α) : ρ ⊢ $(abs e) a ≤ (ρ :# a) ⊢ e := by
+  intros v v_eval
+  match e with
+  | .var 0 =>
+    simp at v_eval
+    have cool : (ρ :# a) ⊢ $(FreeMagma.var 0) ⇓ a := PAS.var_eval (ρ :# a) ⟨ 0 , by simp ⟩
+    have cooler : ρ ⊢ a ⇓ v := by
+      apply i_eval_inv
+      exact v_eval
+    rwa [←PAS.const_eval_eq ρ a v cooler]
+  | .var (n+1) => sorry
+  | .const a => sorry
+  | .ap e₁ e₂ => sorry
 
 end SKI
     -- exists _

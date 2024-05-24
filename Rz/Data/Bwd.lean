@@ -38,7 +38,7 @@ instance : Append (Bwd α) where
 @[simp] def nil_append (as : Bwd α) : append .nil as = as := by
   induction as <;> simpa [append]
 
-def get (as : Bwd α) (i : Fin as.length) : α :=
+@[simp] def get (as : Bwd α) (i : Fin as.length) : α :=
 match as with
 | .nil => by
   have : i.val < 0 := i.is_lt
