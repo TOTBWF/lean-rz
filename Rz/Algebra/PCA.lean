@@ -1,8 +1,6 @@
 /-
 # Partial Combinatory Algebras
 -/
-import Mathlib.Data.List.Indexes
-
 import Rz.Data.Bwd
 import Rz.Syntax.Magma
 import Rz.Syntax.Subst
@@ -12,7 +10,7 @@ universe u v w
 variable {α β : Type u}
 
 /-!
-# Partial Combinatory Algebras
+# Partial Applicative Structures
 -/
 
 /-- Notation typeclass for Eval. -/
@@ -43,33 +41,39 @@ class PAS (α : Type u) extends HasEval α where
   /-- The evaluation relation is functional. -/
   eval_functional : {ρ : Bwd α} → {e : FreeMagma α} → {a a' : α} → ρ ⊢ e ⇓ a → ρ ⊢ e ⇓ a' → a = a'
   /-- Looking up the 0th variable resolves to the final element of the environment. -/
-  var_zero_eval : (ρ : Bwd α) → (a : α) → (ρ :# a) ⊢ $(FreeMagma.var 0) ⇓ a
+  var_zero_eval : (ρ : Bwd α) → (a : α) → (ρ :# a) ⊢ `(0) ⇓ a
   /-- Resolving a successor variable requires us to look up in the tail of the environment. -/
   var_succ_eval : (ρ : Bwd α) → (a : α) → (n : Nat) → (ρ :# a) ⊢ `(n+1) ≃ ρ ⊢ `(n)
   /-- Resolving an out-of-bounds variable diverges. -/
   var_zero_diverge : (n : Nat) → (Bwd.nil : Bwd α) ⊢ `(n+1) ↑
   /-- Constants reduce to themselves. -/
   const_eval : (ρ : Bwd α) → (a : α) → ρ ⊢ a ⇓ a
+  /-- Applications are evaluated by evaluating both sides.
+      Note the change of environment; this corresponds to the fact that substitutions do not act on values. -/
   ap_eval : {ρ₁ ρ₂ : Bwd α} → {e₁ e₂ : FreeMagma α} → {a₁ a₂ : α} → ρ₁ ⊢ e₁ ⇓ a₁ → ρ₁ ⊢ e₂ ⇓ a₂ → ρ₁ ⊢ e₁ e₂ ≃ ρ₂ ⊢ a₁ a₂
+  /-- If an application is defined, then so is the left argument. -/
   ap_left_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₁ ↓
+  /-- If an application is defined, then so is the right argument. -/
   ap_right_defined : {ρ : Bwd α} → {e₁ e₂ : FreeMagma α} → ρ ⊢ e₁ e₂ ↓ → ρ ⊢ e₂ ↓
+
+namespace PAS
 
 /-!
 ## Variable Lemmas
 -/
 
 /-- Variant of `var_succ_eval` that uses `Nat.pred`. -/
-theorem PAS.var_pred_eval_ne_zero
+theorem var_pred_eval_ne_zero
   [PAS α]
   (ρ : Bwd α) (a : α)
   (n : Nat) (h : n ≠ 0)
   : (ρ :# a) ⊢ `(n) ≃ ρ ⊢ `(n.pred) := by
   match n with
   | 0 => contradiction
-  | n+1 => apply PAS.var_succ_eval
+  | n+1 => apply var_succ_eval
 
-/-- -/
-theorem PAS.var_get_eval
+/-- Variable lookups evaluate to `Bwd.get` if they are in bounds. -/
+theorem var_get_eval
   [PAS α]
   (ρ : Bwd α) (x : Fin ρ.length)
   : ρ ⊢ `(x) ⇓ ρ.get x := by
@@ -91,7 +95,8 @@ theorem PAS.var_get_eval
 ## Evaluation Lemmas
 -/
 
-theorem PAS.const_eval_eq
+/-- If a value evaluates to another value, then the two values are equal. -/
+theorem const_eval_eq
   [PAS α]
   (ρ : Bwd α)
   (a a' : α) (a_eval : ρ ⊢ a ⇓ a')
@@ -99,15 +104,16 @@ theorem PAS.const_eval_eq
     eval_functional (const_eval ρ a) a_eval
 
 /-- Evaluation of constants is invariant under environments. -/
-theorem PAS.const_eval_stable
+theorem const_eval_stable
   [PAS α]
   (ρ₁ ρ₂ : Bwd α)
   (a a' : α) (a_eval : ρ₁ ⊢ a ⇓ a')
   : ρ₂ ⊢ a ⇓ a' := by
-    rw [PAS.const_eval_eq ρ₁ a a' a_eval]
-    apply PAS.const_eval
+    rw [const_eval_eq ρ₁ a a' a_eval]
+    apply const_eval
 
-theorem PAS.closed_eval_stable
+/-- Evaluation of closed terms is invariant under environments. -/
+theorem closed_eval_stable
   [PAS α]
   (ρ₁ ρ₂ : Bwd α)
   (e : FreeMagma α) (a : α)
@@ -117,28 +123,34 @@ theorem PAS.closed_eval_stable
     match e with
     | .var _ => contradiction
     | .const b =>
-       apply PAS.const_eval_stable
+       apply const_eval_stable
        exact a_eval
     | .ap e₁ e₂ =>
       have ⟨ a₁ , a₁_eval_ρ₁ ⟩ := ap_left_defined ⟨ a , a_eval ⟩
       have ⟨ a₂ , a₂_eval_ρ₁ ⟩ := ap_right_defined ⟨ a , a_eval ⟩
       have ⟨ e₁_closed , e₂_closed ⟩ := FreeMagma.ap_closed_closed closed
       have a₁_eval_ρ₂ : ρ₂ ⊢ e₁ ⇓ a₁ := by
-        apply PAS.closed_eval_stable
+        apply closed_eval_stable
         · exact e₁_closed
         · exact a₁_eval_ρ₁
       have a₂_eval_ρ₂ : ρ₂ ⊢ e₂ ⇓ a₂ := by
-        apply PAS.closed_eval_stable
+        apply closed_eval_stable
         · exact e₂_closed
         · exact a₂_eval_ρ₁
-      apply (PAS.ap_eval a₁_eval_ρ₂ a₂_eval_ρ₂).2
-      apply (PAS.ap_eval (ρ₂ := ρ₂) a₁_eval_ρ₁ a₂_eval_ρ₁).1
+      apply (ap_eval a₁_eval_ρ₂ a₂_eval_ρ₂).2
+      apply (ap_eval (ρ₂ := ρ₂) a₁_eval_ρ₁ a₂_eval_ρ₁).1
       · exact a_eval
 
-theorem PAS.const_defined [PAS α] (ρ : Bwd α) (a : α) : ρ ⊢ a ↓ :=
-  ⟨ a , PAS.const_eval ρ a ⟩
+/-!
+## Definedness Lemmas
+-/
 
-theorem PAS.ap_defined
+/-- Constants are always defined. -/
+theorem const_defined [PAS α] (ρ : Bwd α) (a : α) : ρ ⊢ a ↓ :=
+  ⟨ a , const_eval ρ a ⟩
+
+/-- An application is defined when both sides evalute to a value, and the application of those values is defined. -/
+theorem ap_defined
   [PAS α]
   {ρ : Bwd α} {e₁ e₂ : FreeMagma α} {a₁ a₂ : α}
   (e₁_def : ρ ⊢ e₁ ⇓ a₁) (e₂_def : ρ ⊢ e₂ ⇓ a₂)
@@ -146,6 +158,8 @@ theorem PAS.ap_defined
   : ρ ⊢ e₁ e₂ ↓ :=
     let ⟨ w , h ⟩ := v_def
     ⟨ w , (ap_eval e₁_def e₂_def).2 w h ⟩
+
+end PAS
 
 /-- Partial Combinatory Algebras. -/
 class PCA (α : Type u) extends PAS α where
@@ -160,6 +174,7 @@ class PCA (α : Type u) extends PAS α where
 # SKI forms a basis for PCAs (and v.v.)
 -/
 
+/-- Partial Applicative Structures with S, K, and I combinators. -/
 class SKI (α : Type u) extends PAS α where
   s : α
   k : α
