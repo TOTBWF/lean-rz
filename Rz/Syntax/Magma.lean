@@ -4,6 +4,7 @@
 import Lean
 
 import Rz.Data.Bwd
+import Rz.Data.Nat
 import Rz.Syntax.Subst
 
 open Lean Syntax Meta Elab
@@ -30,6 +31,9 @@ theorem fv_left_le_fv_ap (e₁ e₂ : FreeMagma α) : e₁.fv ≤ (ap e₁ e₂)
 
 theorem fv_right_le_fv_ap (e₁ e₂ : FreeMagma α) : e₂.fv ≤ (ap e₁ e₂).fv := Nat.le_max_right _ _
 
+
+theorem ap_closed_closed {e₁ e₂ : FreeMagma α} (h : (ap e₁ e₂).fv = 0) : e₁.fv = 0 ∧ e₂.fv = 0 :=
+  Nat.eq_zero_of_max_eq_zero h
 
 def rename (e : FreeMagma α) (ρ : Rn) : FreeMagma α :=
 match e with
@@ -84,6 +88,7 @@ syntax (name := term_reduce) "reduce% " ident term:max* : term
 declare_syntax_cat magma
 syntax ident : magma
 syntax "$(" term:min ")" : magma
+syntax "`(" term:min ")" : magma
 syntax:10 magma:10 (colGt magma:11)+ : magma
 syntax "(" magma:min ")" : magma
 syntax "«magma»" magma : term
@@ -91,6 +96,7 @@ syntax "«magma»" magma : term
 macro_rules
 | `(«magma» $x:ident ) => `(reduce% MagmaSyntax.quote $x)
 | `(«magma» $($x:term) ) => `(reduce% MagmaSyntax.quote $x)
+| `(«magma» `($x:term) ) => `(FreeMagma.var $x)
 | `(«magma» $a:magma $args:magma*) => do
     Array.foldlM (β := Term) (fun acc arg => `(FreeMagma.ap $acc («magma» $arg))) (← `(«magma» $a)) args
 | `(«magma» ( $a:magma )) => `(«magma» $a)

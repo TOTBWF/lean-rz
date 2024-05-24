@@ -15,7 +15,7 @@ infixl:67 " :# " => Bwd.snoc
 
 namespace Bwd
 
-def length : Bwd α → Nat
+@[reducible] def length : Bwd α → Nat
 | .nil => 0
 | .snoc as _ => length as + 1
 
@@ -38,7 +38,7 @@ instance : Append (Bwd α) where
 @[simp] def nil_append (as : Bwd α) : append .nil as = as := by
   induction as <;> simpa [append]
 
-@[simp] def get (as : Bwd α) (i : Fin as.length) : α :=
+def get (as : Bwd α) (i : Fin as.length) : α :=
 match as with
 | .nil => by
   have : i.val < 0 := i.is_lt
@@ -48,6 +48,12 @@ match as with
     a
   else
     get as (Fin.pred i h)
+
+@[simp] theorem get_snoc_zero (as : Bwd α) (a : α) : get (snoc as a) 0 = a := rfl
+@[simp] theorem get_snoc_succ (as : Bwd α) (a : α) (n : Fin as.length) : get (snoc as a) (Fin.succ n) = get as n := rfl
+
+theorem get_snoc_pred_ne_zero (as : Bwd α) (a : α) (n : Fin (as.length + 1)) (h : n ≠ 0) : get (snoc as a) n = get as (Fin.pred n h) := by
+ simp [get, dif_neg h]
 
 def foldBwdM [Monad m] (f : β → α → m β) (init : β) : Bwd α → m β
 | .nil => pure init
