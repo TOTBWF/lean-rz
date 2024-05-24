@@ -170,6 +170,19 @@ class PCA (α : Type u) extends PAS α where
   /-- Bracket abstraction has a β-law. -/
   abs_eval : (ρ : Bwd α) → (a : α) → (e : FreeMagma α) → ρ ⊢ $(abs e) a ≃ (ρ :# a) ⊢ e
 
+namespace PCA
+
+protected def true [PCA α] : FreeMagma α :=
+  (abs (abs (.var 1)))
+
+protected def false [PCA α] : FreeMagma α :=
+  (abs (abs (.var 0)))
+
+protected def ite [PCA α] : FreeMagma α :=
+  (abs (abs (abs («magma» `(2) `(1) `(0)))))
+
+end PCA
+
 /-!
 # SKI forms a basis for PCAs (and v.v.)
 -/
