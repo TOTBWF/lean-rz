@@ -180,65 +180,66 @@ theorem ap_defined
     let ⟨ w , h ⟩ := v_def
     ⟨ w , ap_eval_ge e₁_def e₂_def w h ⟩
 
+def refine_refl
+  [PAS α]
+  {ρ : Bwd α} {e : FreeMagma α}
+  : ρ ⊢ e ≤ ρ ⊢ e := by
+  intros _ v_eval
+  exact v_eval
+
+def ap_refine
+  [PAS α]
+  {ρ : Bwd α} {e₁ e₂ e₁' e₂' : FreeMagma α}
+  (rl : ρ ⊢ e₁ ≤ ρ ⊢ e₁')
+  (rr : ρ ⊢ e₂ ≤ ρ ⊢ e₂')
+  : ρ ⊢ e₁ e₂ ≤ ρ ⊢ e₁' e₂' := by
+  intros v v_eval
+  have ⟨ v₁ , v₁_eval ⟩ := ap_left_defined ⟨ v , v_eval ⟩
+  have ⟨ v₂ , v₂_eval ⟩ := ap_right_defined ⟨ v , v_eval ⟩
+  apply ap_eval_ge
+  · exact rl v₁ v₁_eval
+  · exact rr v₂ v₂_eval
+  · apply ap_eval_le (ρ₂ := ρ)
+    · exact v₁_eval
+    · exact v₂_eval
+    · exact v_eval
+
+def ap_refine_left
+  [PAS α]
+  {ρ : Bwd α} {e₁ e₂ e₁' : FreeMagma α}
+  (h : ρ ⊢ e₁ ≤ ρ ⊢ e₁')
+  : ρ ⊢ e₁ e₂ ≤ ρ ⊢ e₁' e₂ :=
+  ap_refine h refine_refl
+
+def ap_refine_right
+  [PAS α]
+  {ρ : Bwd α} {e₁ e₂ e₂' : FreeMagma α}
+  (h : ρ ⊢ e₂ ≤ ρ ⊢ e₂')
+  : ρ ⊢ e₁ e₂ ≤ ρ ⊢ e₁ e₂' :=
+  ap_refine refine_refl h
+
 def ap_congl
   [PAS α]
-  {ρ : Bwd α} {e₁ e₂ : FreeMagma α} {v₁ v : α}
-  (eval : ρ ⊢ e₁ e₂ ⇓ v)
+  {ρ : Bwd α} {e₁ e₂ : FreeMagma α} {v₁ : α}
   (e₁_eval : ρ ⊢ e₁ ⇓ v₁)
-  : ρ ⊢ v₁ e₂ ⇓ v := by
-  have ⟨ v₂ , e₂_eval ⟩ := ap_right_defined ⟨ v , eval ⟩
-  apply ap_eval_ge (a₁ := v₁) (a₂ := v₂) _ _
-  · apply ap_eval_le (ρ₂ := ρ) _ _
-    · exact eval
-    · exact e₁_eval
-    · exact e₂_eval
-  · apply const_eval
-  · exact e₂_eval
-
-def ap_congl_inv
-  [PAS α]
-  {ρ : Bwd α} {e₁ e₂ : FreeMagma α} {v₁ v : α}
-  (eval : ρ ⊢ v₁ e₂ ⇓ v)
-  (e₁_eval : ρ ⊢ e₁ ⇓ v₁)
-  : ρ ⊢ e₁ e₂ ⇓ v := by
-  have ⟨ v₂ , e₂_eval ⟩ := ap_right_defined ⟨ v , eval ⟩
-  apply ap_eval_ge (ρ₂ := ρ) (a₁ := v₁) (a₂ := v₂) _ _
-  · apply ap_eval_le (ρ₂ := ρ) _ _
-    · exact eval
-    · apply const_eval
-    · exact e₂_eval
-  · exact e₁_eval
-  · exact e₂_eval
+  : ρ ⊢ e₁ e₂ ≤ ρ ⊢ v₁ e₂ := by
+  apply ap_refine_left
+  intros v v_eval
+  have : v = v₁ := eval_functional v_eval e₁_eval
+  rw [this]
+  apply const_eval
 
 def ap_congr
   [PAS α]
-  {ρ : Bwd α} {e₁ e₂ : FreeMagma α} {v₂ v : α}
-  (eval : ρ ⊢ e₁ e₂ ⇓ v)
+  {ρ : Bwd α} {e₁ e₂ : FreeMagma α} {v₂ : α}
   (e₂_eval : ρ ⊢ e₂ ⇓ v₂)
-  : ρ ⊢ e₁ v₂ ⇓ v := by
-  have ⟨ v₁ , e₁_eval ⟩ := ap_left_defined ⟨ v , eval ⟩
-  apply ap_eval_ge (a₁ := v₁) (a₂ := v₂) _ _
-  · apply ap_eval_le (ρ₂ := ρ) _ _
-    · exact eval
-    · exact e₁_eval
-    · exact e₂_eval
-  · exact e₁_eval
-  · apply const_eval
+  : ρ ⊢ e₁ e₂ ≤ ρ ⊢ e₁ v₂ := by
+  apply ap_refine_right
+  intros v v_eval
+  have : v = v₂ := eval_functional v_eval e₂_eval
+  rw [this]
+  apply const_eval
 
-def ap_congr_inv
-  [PAS α]
-  {ρ : Bwd α} {e₁ e₂ : FreeMagma α} {v₂ v : α}
-  (eval : ρ ⊢ e₁ v₂ ⇓ v)
-  (e₂_eval : ρ ⊢ e₂ ⇓ v₂)
-  : ρ ⊢ e₁ e₂ ⇓ v := by
-  have ⟨ v₁ , e₁_eval ⟩ := ap_left_defined ⟨ v , eval ⟩
-  apply ap_eval_ge (ρ₂ := ρ) (a₁ := v₁) (a₂ := v₂) _ _
-  · apply ap_eval_le (ρ₂ := ρ) _ _
-    · exact eval
-    · exact e₁_eval
-    · apply const_eval
-  · exact e₁_eval
-  · exact e₂_eval
 
 end PAS
 
@@ -260,7 +261,7 @@ protected def i [PCA α] : FreeMagma α :=
 protected def i_eval_le [PCA α] (ρ : Bwd α) (e : FreeMagma α) : ρ ⊢ PCA.i e ≤ ρ ⊢ e := by
   intros v v_eval
   have ⟨ v' , v'_eval ⟩ := PAS.ap_right_defined ⟨ v , v_eval ⟩
-  have : ρ ⊢ PCA.i v' ⇓ v := PAS.ap_congr v_eval v'_eval
+  have : ρ ⊢ PCA.i v' ⇓ v := PAS.ap_congr v'_eval _ v_eval
   have l : (ρ :# v') ⊢ `(0) ⇓ v := abs_eval_le ρ v' (.var 0) v this
   have r : (ρ :# v') ⊢ `(0) ⇓ v' := by
    apply PAS.var_zero_eval
