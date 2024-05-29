@@ -25,12 +25,14 @@ namespace FreeMagma
 | .const _ => 0
 | .ap e₁ e₂ => Nat.max (fv e₁) (fv e₂)
 
+@[simp] def aps (e : FreeMagma α) (es : Bwd (FreeMagma α)) : FreeMagma α :=
+  es.foldBwd FreeMagma.ap e
+
 theorem fv_const_le (a : α) (n : Nat) : (const a).fv ≤ n := Nat.zero_le _
 
 theorem fv_left_le_fv_ap (e₁ e₂ : FreeMagma α) : e₁.fv ≤ (ap e₁ e₂).fv := Nat.le_max_left _ _
 
 theorem fv_right_le_fv_ap (e₁ e₂ : FreeMagma α) : e₂.fv ≤ (ap e₁ e₂).fv := Nat.le_max_right _ _
-
 
 theorem ap_closed_closed {e₁ e₂ : FreeMagma α} (h : (ap e₁ e₂).fv = 0) : e₁.fv = 0 ∧ e₂.fv = 0 :=
   Nat.eq_zero_of_max_eq_zero h
@@ -73,30 +75,32 @@ instance : MagmaSyntax (FreeMagma α) α where
 instance : MagmaSyntax α α where
   quote := .const
 
-syntax (name := term_reduce) "reduce% " ident term:max* : term
+syntax (name := term_whnfI) "whnfI% " ident term:max* : term
 
-@[term_elab term_reduce] def elabReduce : Term.TermElab := fun stx expectedType? => do
+@[term_elab term_whnfI] def elabReduce : Term.TermElab := fun stx expectedType? => do
   match stx with
-  | `(reduce% $f $[$args]*) =>
+  | `(whnfI% $f $[$args]*) =>
     -- Note: this doesn't seem to add terminfo to `f`
     let some f ← Term.resolveId? f (withInfo := true) | throwUnknownConstant f.getId
     let e ← Term.elabAppArgs f #[] (args.map .stx) expectedType?
       (explicit := false) (ellipsis := false)
-    reduce e
+    whnfI e
   | _ => throwUnsupportedSyntax
 
 declare_syntax_cat magma
 syntax ident : magma
 syntax "$(" term:min ")" : magma
 syntax "`(" term:min ")" : magma
+syntax magma "$[" term:min "]*" : magma
 syntax:10 magma:10 (colGt magma:11)+ : magma
 syntax "(" magma:min ")" : magma
 syntax "«magma»" magma : term
 
 macro_rules
-| `(«magma» $x:ident ) => `(reduce% MagmaSyntax.quote $x)
-| `(«magma» $($x:term) ) => `(reduce% MagmaSyntax.quote $x)
+| `(«magma» $x:ident ) => `(whnfI% MagmaSyntax.quote $x)
+| `(«magma» $($x:term) ) => `(whnfI% MagmaSyntax.quote $x)
 | `(«magma» `($x:term) ) => `(FreeMagma.var $x)
+| `(«magma» $a:magma $[$x:term]* ) => `(FreeMagma.aps («magma» $a) $x)
 | `(«magma» $a:magma $args:magma*) => do
     Array.foldlM (β := Term) (fun acc arg => `(FreeMagma.ap $acc («magma» $arg))) (← `(«magma» $a)) args
 | `(«magma» ( $a:magma )) => `(«magma» $a)

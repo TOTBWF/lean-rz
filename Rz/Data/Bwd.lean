@@ -20,7 +20,7 @@ namespace Bwd
 | .snoc as _ => length as + 1
 
 @[simp] def length_nil : length (.nil : Bwd α) = 0 := rfl
-@[simp] def length_snoc (as : Bwd α) (a : α) : length (.snoc as a) = length as + 1 := rfl
+@[simp] def length_snoc (as : Bwd α) (a : α) : length (as :# a) = length as + 1 := rfl
 
 def append (as bs : Bwd α) : Bwd α :=
 match bs with
@@ -34,9 +34,11 @@ instance : Append (Bwd α) where
   induction bs <;> simp [append]
   case snoc bs b ih => simp [←Nat.add_assoc, ih]
 
-@[simp] def append_nil (as : Bwd α) : append as .nil = as := rfl
-@[simp] def nil_append (as : Bwd α) : append .nil as = as := by
-  induction as <;> simpa [append]
+@[simp] def append_nil (as : Bwd α) : as ++ .nil = as := rfl
+@[simp] def append_snoc (as bs : Bwd α) (b : α) : as ++ (bs :# b) = (as ++ bs) :# b := rfl
+
+@[simp] def nil_append (as : Bwd α) : .nil ++ as = as := by
+  induction as <;> simpa
 
 def get (as : Bwd α) (i : Fin as.length) : α :=
 match as with
@@ -73,12 +75,7 @@ def foldBwd (f : β → α → β) (init : β) (as : Bwd α) : β :=
   (as : Bwd α) (a : α)
   : foldBwdM f init (.snoc as a) = foldBwdM f init as >>= (fun b => f b a) := rfl
 
--- @[simp] def foldBwdM_append [Monad m]
---   (f : β → α → m β) (init : β)
---   (as bs : Bwd α)
---   : foldBwdM f init (as ++ bs) = foldBwdM f init as >>= fun b => foldBwdM f b bs := by
---   induction bs <;> simp [foldBwdM]
---   case nil =>
---     sorry
---   case snoc bs b ih =>
---     sorry
+@[simp] def foldBwd_snoc
+  (f : β → α → β) (init : β)
+  (as : Bwd α) (a : α)
+  : foldBwd f init (.snoc as a) = f (foldBwd f init as) a := rfl
