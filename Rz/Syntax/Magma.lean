@@ -3,7 +3,7 @@
 -/
 import Lean
 
-import Rz.Data.Bwd
+-- import Rz.Data.Bwd
 import Rz.Data.Nat
 import Rz.Syntax.Subst
 
@@ -25,8 +25,11 @@ namespace FreeMagma
 | .const _ => 0
 | .ap e₁ e₂ => Nat.max (fv e₁) (fv e₂)
 
-@[simp] def aps (e : FreeMagma α) (es : Bwd (FreeMagma α)) : FreeMagma α :=
-  es.foldBwd FreeMagma.ap e
+def revAps (e : FreeMagma α) (es : List (FreeMagma α)) : FreeMagma α :=
+  es.foldr (fun a b => .ap b a) e
+
+@[simp] theorem revAps_nil (e : FreeMagma α) : revAps e [] = e := rfl
+@[simp] theorem revAps_cons (e : FreeMagma α) (a as) : revAps e (a :: as) = (revAps e as).ap a := rfl
 
 theorem fv_const_le (a : α) (n : Nat) : (const a).fv ≤ n := Nat.zero_le _
 
@@ -77,14 +80,15 @@ instance : MagmaSyntax α α where
 
 syntax (name := term_whnfI) "whnfI% " ident term:max* : term
 
-@[term_elab term_whnfI] def elabReduce : Term.TermElab := fun stx expectedType? => do
+@[term_elab term_whnfI] def elabWhnfI : Term.TermElab := fun stx expectedType? => do
   match stx with
   | `(whnfI% $f $[$args]*) =>
     -- Note: this doesn't seem to add terminfo to `f`
     let some f ← Term.resolveId? f (withInfo := true) | throwUnknownConstant f.getId
     let e ← Term.elabAppArgs f #[] (args.map .stx) expectedType?
       (explicit := false) (ellipsis := false)
-    whnfI e
+    let e ← instantiateMVars e
+    whnfI <| (← Term.tryPostponeIfHasMVars? e).getD e
   | _ => throwUnsupportedSyntax
 
 declare_syntax_cat magma
@@ -100,7 +104,7 @@ macro_rules
 | `(«magma» $x:ident ) => `(whnfI% MagmaSyntax.quote $x)
 | `(«magma» $($x:term) ) => `(whnfI% MagmaSyntax.quote $x)
 | `(«magma» `($x:term) ) => `(FreeMagma.var $x)
-| `(«magma» $a:magma $[$x:term]* ) => `(FreeMagma.aps («magma» $a) $x)
+| `(«magma» $a:magma $[$x:term]* ) => `(FreeMagma.revAps («magma» $a) $x)
 | `(«magma» $a:magma $args:magma*) => do
     Array.foldlM (β := Term) (fun acc arg => `(FreeMagma.ap $acc («magma» $arg))) (← `(«magma» $a)) args
 | `(«magma» ( $a:magma )) => `(«magma» $a)

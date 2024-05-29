@@ -40,7 +40,7 @@ instance : Append (Bwd α) where
 @[simp] def nil_append (as : Bwd α) : .nil ++ as = as := by
   induction as <;> simpa
 
-def get (as : Bwd α) (i : Fin as.length) : α :=
+def getRev (as : Bwd α) (i : Fin as.length) : α :=
 match as with
 | .nil => by
   have : i.val < 0 := i.is_lt
@@ -49,13 +49,13 @@ match as with
   if h : i = (0 : Fin (as.length + 1)) then
     a
   else
-    get as (Fin.pred i h)
+    getRev as (Fin.pred i h)
 
-@[simp] theorem get_snoc_zero (as : Bwd α) (a : α) : get (snoc as a) 0 = a := rfl
-@[simp] theorem get_snoc_succ (as : Bwd α) (a : α) (n : Fin as.length) : get (snoc as a) (Fin.succ n) = get as n := rfl
+@[simp] theorem getRev_snoc_zero (as : Bwd α) (a : α) : getRev (snoc as a) 0 = a := rfl
+@[simp] theorem getRev_snoc_succ (as : Bwd α) (a : α) (n : Fin as.length) : getRev (snoc as a) (Fin.succ n) = getRev as n := rfl
 
-theorem get_snoc_pred_ne_zero (as : Bwd α) (a : α) (n : Fin (as.length + 1)) (h : n ≠ 0) : get (snoc as a) n = get as (Fin.pred n h) := by
- simp [get, dif_neg h]
+theorem getRev_snoc_pred_ne_zero (as : Bwd α) (a : α) (n : Fin (as.length + 1)) (h : n ≠ 0) : getRev (snoc as a) n = getRev as (Fin.pred n h) := by
+ simp [getRev, dif_neg h]
 
 def foldBwdM [Monad m] (f : β → α → m β) (init : β) : Bwd α → m β
 | .nil => pure init
