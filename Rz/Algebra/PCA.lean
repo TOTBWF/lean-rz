@@ -35,22 +35,56 @@ def Undefined [PAS α] (ρ : List α) (e : FreeMagma α) : Prop := (a : α) → 
 def Defined [PAS α] (ρ : List α) (e : FreeMagma α) : Prop := ∃ (a : α), ρ ⊢ e ⇓ a
 /-- `Refines ρ e₁ e₂` denotes that an expression `e₂` is least as defined as `e₁`. -/
 def Refines [PAS α] (ρ₁ : List α) (e₁ : FreeMagma α) (ρ₂ : List α) (e₂ : FreeMagma α) : Prop := {a : α} → ρ₁ ⊢ e₁ ⇓ a → ρ₂ ⊢ e₂ ⇓ a
+
+open Classical in
+
+noncomputable def ap [PAS α] : Option α → Option α → Option α
+  | some a, some b =>
+    if h : ∃ c, PAS.Ap a b c then some (Classical.choose h) else none
+  | _, _ => none
+
+/-- Extend the small-step relation to a big-step function on `FreeMagma α`. -/
+@[simp] noncomputable def eval [PAS α] : (ρ : List α) → FreeMagma α → Option α
+  | ρ, .var i => ρ.get? i
+  | _, .const a => some a
+  | ρ, .ap e₁ e₂ => ap (eval ρ e₁) (eval ρ e₂)
+
 end PAS
 
 @[inherit_doc PAS.Undefined]
-syntax term " ⊢ " magma " ↑" : term
+macro ρ:term " ⊢ " e:magma " ↑" : term => `(PAS.Undefined $ρ («magma» $e))
 @[inherit_doc PAS.Defined]
-syntax term " ⊢ " magma " ↓" : term
+macro ρ:term " ⊢ " e:magma " ↓" : term => `(PAS.Defined $ρ («magma» $e))
 @[inherit_doc PAS.Refines]
-syntax term " ⊢ " magma " ≤ " term:max " ⊢ " withPosition(magma) : term
+macro ρ₁:term " ⊢ " e₁:magma " ≤ " ρ₂:term:max " ⊢ " e₂:withPosition(magma) : term =>
+  `(PAS.Refines $ρ₁ («magma» $e₁) $ρ₂ («magma» $e₂))
 
-macro_rules
-| `($ρ:term ⊢ $e:magma ↑) => `(PAS.Undefined $ρ («magma» $e))
-| `($ρ:term ⊢ $e:magma ↓) => `(PAS.Defined $ρ («magma» $e))
-| `($ρ₁:term ⊢ $e₁:magma ≤ $ρ₂:term ⊢ $e₂:magma) => `(PAS.Refines $ρ₁ («magma» $e₁) $ρ₂ («magma» $e₂))
-
+@[inherit_doc PAS.eval]
+macro "eval(" ρ:term:max " ⊢ " e:magma ")" : term => `(PAS.eval $ρ («magma» $e))
 
 namespace PAS
+
+theorem ap_eq_some [PAS α] {oa ob : Option α} {c : α} :
+    ap oa ob = some c ↔ ∃ a b, oa = some a ∧ ob = some b ∧ Ap a b c := by
+  cases oa <;> cases ob <;> simp [ap]
+  split
+  · next h =>
+    constructor <;> intro h2
+    · cases h2; exact Classical.choose_spec h
+    · rw [ap_functional (Classical.choose_spec h) h2]
+  · simp; exact mt (Exists.intro _) ‹_›
+
+@[simp] theorem ap_none_left [PAS α] (a : Option α) : ap none a = none := rfl
+@[simp] theorem ap_none_right [PAS α] (a : Option α) : ap a none = none := by cases a <;> rfl
+
+theorem eval_eq_some [PAS α] {ρ : List α} {e : FreeMagma α} {v : α} :
+    eval(ρ ⊢ e) = some v ↔ ρ ⊢ e ⇓ v := by
+  induction e generalizing v with simp [Eval]
+  | var i => simp [List.get?_eq_some]
+  | ap e₁ e₂ ih₁ ih₂ => simp [ap_eq_some, ih₁, ih₂]
+
+theorem eval_isSome [PAS α] {ρ : List α} {e : FreeMagma α} : (eval ρ e).isSome ↔ ρ ⊢ e ↓ := by
+  simp [Option.isSome_iff_exists, eval_eq_some, Defined]
 
 /-!
 ### Order-Theoretic Properties of Refinement
@@ -161,6 +195,13 @@ class PCA (α : Type u) extends PAS α where
 namespace PCA
 
 variable [PCA α]
+open PAS
+
+@[simp] theorem abs_eval' {ρ : List α} {e : FreeMagma α} {v : α} :
+    ap (eval ρ (abs e)) v = eval (v :: ρ) e := by
+  ext v'; simp [eval_eq_some]
+  rw [← eval.eq_2, ← eval.eq_3, eval_eq_some, abs_eval]
+  simp
 
 @[simp] def absn (e : FreeMagma α) : Nat → FreeMagma α
   | 0 => e
@@ -225,24 +266,33 @@ protected theorem le_id (ρ : List α) (e : FreeMagma α) : ρ ⊢ e ≤ ρ ⊢ 
   simp [PAS.Eval]
   exact v_eval
 
-@[simp] protected theorem i_eval {ρ : List α} {e : FreeMagma α} {v : α} : ρ ⊢ PCA.id e ⇓ v ↔ ρ ⊢ e ⇓ v :=
-  ⟨ PCA.id_le _ _ , PCA.le_id _ _ ⟩
+-- @[simp] protected theorem i_eval {ρ : List α} {e : FreeMagma α} {v : α} : ρ ⊢ PCA.id e ⇓ v ↔ ρ ⊢ e ⇓ v :=
+--   ⟨ PCA.id_le _ _ , PCA.le_id _ _ ⟩
+
+@[simp] protected theorem i_eval' {ρ : List α} {e : Option α} :
+    ap eval(ρ ⊢ PCA.id) e = e := by
+  simp [PCA.id]; cases e <;> simp
+
+@[simp] protected theorem i_eval {ρ : List α} {e : FreeMagma α} {v : α} :
+    ρ ⊢ PCA.id e ⇓ v ↔ ρ ⊢ e ⇓ v := by
+  simp [← eval_eq_some]
 
 -- \f g x.
 protected def comp : FreeMagma α :=
   abs (abs (abs («magma» `(1) (`(2) `(0)))))
 
-protected theorem comp_le
-  {ρ : List α} {e₁ e₂ e₃ : FreeMagma α} {v : α}
-  : ρ ⊢ PCA.comp e₁ e₂ e₃ ≤ ρ ⊢ e₂ (e₁ e₃) := by
-  intro v v_eval
-  simp [PCA.comp] at v_eval
-  sorry
+@[simp] protected theorem comp_eval'
+    {ρ : List α} {e₁ e₂ e₃ : Option α} :
+    ap (ap (ap eval(ρ ⊢ PCA.comp) e₁) e₂) e₃ = ap e₂ (ap e₁ e₃) := by
+  cases e₁ <;> [simp; skip]
+  cases e₂ <;> [simp; skip]
+  cases e₃ <;> [simp; skip]
+  simp [PCA.comp]
 
-protected theorem le_comp
-  {ρ : List α} {e₁ e₂ e₃ : FreeMagma α} {v : α}
-  : ρ ⊢ e₂ (e₁ e₃) ≤ ρ ⊢ PCA.comp e₁ e₂ e₃ :=
-  sorry
+@[simp] protected theorem comp_eval
+    {ρ : List α} {e₁ e₂ e₃ : FreeMagma α} {v : α} :
+    ρ ⊢ PCA.comp e₁ e₂ e₃ ⇓ v ↔ ρ ⊢ e₂ (e₁ e₃) ⇓ v := by
+  simp [← eval_eq_some]
 
 theorem forall₂_cons_left {R : α → β → Prop} {l₁ : List α} {l₂ : List β} {a : α} :
     List.Forall₂ R (a :: l₁)  l₂ ↔ ∃ b l₂', R a b ∧ l₂ = b :: l₂' ∧ l₁.Forall₂ R l₂' :=
@@ -255,21 +305,21 @@ theorem forall₂_nil_left {R : α → β → Prop} {l₂ : List β} :
     List.Forall₂ R [] l₂ ↔ l₂ = [] := by
   cases l₂ <;> simp; nofun
 
-@[simp] protected theorem comp_eval
-    {ρ : List α} {e₁ e₂ e₃ : FreeMagma α} {v : α}
-    : ρ ⊢ PCA.comp e₁ e₂ e₃ ⇓ v ↔ ρ ⊢ e₂ (e₁ e₃) ⇓ v := by
-  simp [PCA.comp]
-  refine absn_eval (es := [_, _, _]) |>.trans ?_
-  simp [forall₂_cons_left, forall₂_nil_left]
-  constructor
-  · rintro ⟨vargs, ⟨v₃, v₃_eval, _, rfl, v₂, v₂_eval, _, rfl, v₁, v₁_eval, rfl⟩, v_eval⟩
-    simp [PAS.Eval, List.get] at v_eval
-    obtain ⟨_, ⟨-, rfl⟩, v13, ⟨_, ⟨-, rfl⟩, v13_eval⟩, v23_eval⟩ := v_eval
-    exact ⟨_, _, v₂_eval, ⟨_, _, v₁_eval, v₃_eval, v13_eval⟩, v23_eval⟩
-  · rintro ⟨v₂, v13, v₂_eval, ⟨v₁, v₃, v₁_eval, v₃_eval, v13_eval⟩, v23_eval⟩
-    refine ⟨[_,_,_], ⟨_, v₃_eval, _, rfl, _, v₂_eval, _, rfl, _, v₁_eval, rfl⟩, ?ax⟩
-    simp [PAS.Eval, List.get]
-    exact ⟨_, ⟨by omega, rfl⟩, _, ⟨_, ⟨by omega, rfl⟩, v13_eval⟩, v23_eval⟩
+-- @[simp] protected theorem comp_eval
+--     {ρ : List α} {e₁ e₂ e₃ : FreeMagma α} {v : α}
+--     : ρ ⊢ PCA.comp e₁ e₂ e₃ ⇓ v ↔ ρ ⊢ e₂ (e₁ e₃) ⇓ v := by
+--   simp [PCA.comp]
+--   refine absn_eval (es := [_, _, _]) |>.trans ?_
+--   simp [forall₂_cons_left, forall₂_nil_left]
+--   constructor
+--   · rintro ⟨vargs, ⟨v₃, v₃_eval, _, rfl, v₂, v₂_eval, _, rfl, v₁, v₁_eval, rfl⟩, v_eval⟩
+--     simp [PAS.Eval, List.get] at v_eval
+--     obtain ⟨_, ⟨-, rfl⟩, v13, ⟨_, ⟨-, rfl⟩, v13_eval⟩, v23_eval⟩ := v_eval
+--     exact ⟨_, _, v₂_eval, ⟨_, _, v₁_eval, v₃_eval, v13_eval⟩, v23_eval⟩
+--   · rintro ⟨v₂, v13, v₂_eval, ⟨v₁, v₃, v₁_eval, v₃_eval, v13_eval⟩, v23_eval⟩
+--     refine ⟨[_,_,_], ⟨_, v₃_eval, _, rfl, _, v₂_eval, _, rfl, _, v₁_eval, rfl⟩, ?ax⟩
+--     simp [PAS.Eval, List.get]
+--     exact ⟨_, ⟨by omega, rfl⟩, _, ⟨_, ⟨by omega, rfl⟩, v13_eval⟩, v23_eval⟩
 
   -- ⟨ PCA.comp_le (v := v) , PCA.le_comp (v := v) ⟩
 -- @[simp] protected def comp_eval {ρ : List α} {e₁ e₂ e₃ : FreeMagma α} {v : α} : ρ ⊢ PCA.comp e ⇓ v ↔ ρ ⊢ e ⇓ v := sorry
