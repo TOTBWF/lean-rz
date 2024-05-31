@@ -10,10 +10,18 @@ inductive Idx : Nat → Type where
 | zero : {n : Nat} → Idx (n + 1)
 | succ : {n : Nat} → Idx n → Idx (n + 1)
 
-instance {n : Nat} : OfNat (Idx (n + 1)) 0 where
-  ofNat := Idx.zero
-
 namespace Idx
+
+def ofNat {n : Nat} : (k : Nat) → Idx (n + k + 1)
+| 0 => .zero
+| k+1 => .succ (ofNat k)
+
+instance {n : Nat} : OfNat (Idx (n + 1)) 0 where
+  ofNat := .zero
+
+instance {n k : Nat} [N : OfNat (Idx n) k] : OfNat (Idx (n + 1)) (k + 1) where
+  ofNat := .succ N.ofNat
+
 
 def ofFin : {n : Nat} → Fin n → Idx n
 | n+1, ⟨ 0 , _ ⟩ => zero
