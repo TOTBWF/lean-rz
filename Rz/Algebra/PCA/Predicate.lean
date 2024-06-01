@@ -32,6 +32,37 @@ instance : Preorder (Predicate α X) where
     aesop
 
 /-!
+## Top
+-/
+
+
+instance : Top (Predicate α X) where
+  top _ _ := True
+
+lemma le_top
+    {P : Predicate α X}
+    : P ≤ ⊤ := by
+  use A.id ⇓
+  intro x a _
+  refine ⟨ ?_, True.intro ⟩
+  aesop
+
+/-!
+## Bottom
+-/
+
+instance : Bot (Predicate α X) where
+  bot _ _ := False
+
+lemma bot_le
+    {P : Predicate α X}
+    : ⊥ ≤ P := by
+  use A.id ⇓
+  intro x a ff
+  nomatch ff
+
+
+/-!
 ## Meets
 -/
 
