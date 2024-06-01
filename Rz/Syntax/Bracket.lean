@@ -1,4 +1,4 @@
-universe v
+universe u v w
 
 inductive Bracket (α : Type u) : Nat → Type u where
 | var : {n : Nat} → Fin n → Bracket α n
