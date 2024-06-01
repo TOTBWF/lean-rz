@@ -4,9 +4,9 @@ import Mathlib.Tactic.Use
 
 import Rz.Algebra.PCA
 import Rz.Category.Pullback
+import Rz.Order.PreHeyting
 
 universe u v w
-variable {α W X Y Z : Type u}
 
 /-!
 # P(A) valued predicates.
@@ -19,14 +19,14 @@ open PAS
 def Predicate (α : Type u) [PCA α] (X : Type v) := X → Val α → Prop
 
 @[ext]
-lemma Predicate.ext  [PCA α] {P Q : Predicate α X} (h : ∀ x a, P x a ↔ Q x a) : P = Q := by
+lemma Predicate.ext [PCA α] {P Q : Predicate α X} (h : ∀ x a, P x a ↔ Q x a) : P = Q := by
   unfold Predicate
   ext
   apply h
 
-variable [A : PCA α]
+variable {α W X Y Z : Type u} [A : PCA α]
 
-instance : Preorder (Predicate α X) where
+instance {α : Type u} {X : Type v} [A : PCA α] : Preorder (Predicate α X) where
   le P Q := ∃ (f : Val α), ∀ (x : X), ∀ (a : Val α), P x a → ∃ (h : (A.ap f a) ↓), Q x ⟨ A.ap f a , h ⟩
   le_refl P := ⟨ A.id ⇓, by aesop ⟩
   le_trans P Q R := by
@@ -37,138 +37,92 @@ instance : Preorder (Predicate α X) where
     have ⟨ gfa_def, qx ⟩ := g_rz x (A.ap f a ⇓) qx
     aesop
 
-/-!
-## Top
--/
-
-
-instance : Top (Predicate α X) where
+instance {α : Type u} {X : Type v} [PCA α] : Top (Predicate α X) where
   top _ _ := True
 
-lemma le_top
-    {P : Predicate α X}
-    : P ≤ ⊤ := by
-  use A.id ⇓
-  intro x a _
-  refine ⟨ ?_, True.intro ⟩
-  aesop
-
-/-!
-## Bottom
--/
-
-instance : Bot (Predicate α X) where
+instance {α : Type u} {X : Type v} [PCA α] : Bot (Predicate α X) where
   bot _ _ := False
 
-lemma bot_le
-    {P : Predicate α X}
-    : ⊥ ≤ P := by
-  use A.id ⇓
-  intro x a ff
-  nomatch ff
-
-
-/-!
-## Meets
--/
-
-instance : Inf (Predicate α X) where
+instance {α : Type u} {X : Type v} [A : PCA α] : Inf (Predicate α X) where
   inf P Q x a := ∃ (l : Val α), ∃ (r : Val α), (a = ap (ap A.pair l) r) ∧ P x l ∧ Q x r
 
-lemma inf_le_left
-    {P Q : Predicate α X}
-    : P ⊓ Q ≤ P := by
-  use A.fst ⇓
-  rintro x ⟨ a , a_def ⟩ ⟨ l , r , rfl , px, _ ⟩
-  aesop
-
-lemma inf_le_right
-    {P Q : Predicate α X}
-    : P ⊓ Q ≤ Q := by
-  use A.snd ⇓
-  rintro x ⟨ a , a_def ⟩ ⟨ l , r , rfl , _, qx ⟩
-  aesop
-
-lemma inf_universal
-    {P Q R : Predicate α X}
-    : P ≤ Q → P ≤ R → P ≤ Q ⊓ R := by
-  intro ⟨ l , l_rz ⟩ ⟨ r , r_rz ⟩
-  use («pca» fun x => ⟨ l x , r x ⟩) ⇓
-  intro x a px
-  have ⟨ la_def, qx ⟩ := l_rz x a px
-  have ⟨ ra_def, rx ⟩ := r_rz x a px
-  refine ⟨ ?_, ⟨ A.ap l a ⇓, A.ap r a ⇓, ?_, ?_, ?_ ⟩ ⟩ <;> aesop
-
-/-!
-## Joins
--/
-
-instance : Sup (Predicate α X) where
+instance {α : Type u} {X : Type v} [A : PCA α] : Sup (Predicate α X) where
   sup P Q x a := (∃ (l : Val α), (a = ap A.inl l) ∧ P x l) ∨ (∃ (r : Val α), (a = ap A.inr r) ∧ Q x r)
 
-lemma left_le_sup
-    {P Q : Predicate α X}
-    : P ≤ P ⊔ Q := by
-  use A.inl ⇓
-  intro x a px
-  refine ⟨ by simp, Or.inl ⟨ a, rfl, px ⟩ ⟩
-
-lemma right_le_sup
-    {P Q : Predicate α X}
-    : Q ≤ P ⊔ Q := by
-  use A.inr ⇓
-  intro x a qx
-  refine ⟨ by simp, Or.inr ⟨ a, rfl, qx ⟩ ⟩
-
-lemma sup_universal
-    {P Q R : Predicate α X}
-    : P ≤ R → Q ≤ R → P ⊔ Q ≤ R := by
-  intro ⟨ l , l_rz ⟩ ⟨ r , r_rz ⟩
-  use («pca» A.elim l r) ⇓
-  intro x a pqx
-  match pqx with
-  | Or.inl ⟨ la, eq, px ⟩ =>
-    have ⟨ la_def , rx ⟩ := l_rz x la px
-    aesop
-  | Or.inr ⟨ ra, eq, qx ⟩ =>
-    have ⟨ ra_def , rx ⟩ := r_rz x ra qx
-    aesop
-
-/-!
-## Implications
--/
-instance : HImp (Predicate α X) where
+instance {α : Type u} {X : Type v} [A : PCA α] : HImp (Predicate α X) where
   himp P Q x f := ∀ (a : Val α), P x a → ∃ (h : A.ap f a ↓), Q x ⟨ A.ap f a , h ⟩
 
-lemma himp_curry
-    {P Q R : Predicate α X}
-    : (P ⊓ Q ≤ R) → P ≤ (Q ⇨ R) := by
-  intro ⟨ f , f_rz ⟩
-  use (ap A.curry f) ⇓
-  intro x a px
-  use (by aesop)
-  intro b qx
-  have ⟨ d , rx ⟩ := f_rz x (_ ⇓) ⟨ a, b , rfl, px, qx ⟩
-  refine ⟨ ?_, ?_ ⟩
-  · simpa using d
-  · simpa using rx
+instance {α : Type u} {X : Type v} [A : PCA α] : PreHeyting (Predicate α X) where
+  le_top P := by
+    use A.id ⇓
+    intro x a _
+    refine ⟨ ?_, True.intro ⟩
+    aesop
+  bot_le P := by
+    use A.id ⇓
+    intro x a ff
+    nomatch ff
+  inf_le_left P Q := by
+    use A.fst ⇓
+    rintro x ⟨ a , a_def ⟩ ⟨ l , r , rfl , px, _ ⟩
+    aesop
+  inf_le_right P Q := by
+    use A.snd ⇓
+    rintro x ⟨ a , a_def ⟩ ⟨ l , r , rfl , _, qx ⟩
+    aesop
+  le_inf P Q R := by
+    intro ⟨ l , l_rz ⟩ ⟨ r , r_rz ⟩
+    use («pca» fun x => ⟨ l x , r x ⟩) ⇓
+    intro x a px
+    have ⟨ la_def, qx ⟩ := l_rz x a px
+    have ⟨ ra_def, rx ⟩ := r_rz x a px
+    refine ⟨ ?_, ⟨ A.ap l a ⇓, A.ap r a ⇓, ?_, ?_, ?_ ⟩ ⟩ <;> aesop
+  le_sup_left P Q := by
+    use A.inl ⇓
+    intro x a px
+    refine ⟨ by simp, Or.inl ⟨ a, rfl, px ⟩ ⟩
+  le_sup_right P Q := by
+    use A.inr ⇓
+    intro x a qx
+    refine ⟨ by simp, Or.inr ⟨ a, rfl, qx ⟩ ⟩
+  sup_le P Q R := by
+    intro ⟨ l , l_rz ⟩ ⟨ r , r_rz ⟩
+    use («pca» A.elim l r) ⇓
+    intro x a pqx
+    match pqx with
+    | Or.inl ⟨ la, eq, px ⟩ =>
+      have ⟨ la_def , rx ⟩ := l_rz x la px
+      aesop
+    | Or.inr ⟨ ra, eq, qx ⟩ =>
+      have ⟨ ra_def , rx ⟩ := r_rz x ra qx
+      aesop
+  le_himp_iff P Q R := by
+    constructor
+    · intro ⟨ f , f_rz ⟩
+      use (ap A.uncurry f) ⇓
+      intro x ax ⟨ l , r , eq , px , qx ⟩
+      have ⟨ d , qrx ⟩ := f_rz x l px
+      have ⟨ d' , rx ⟩ := qrx r qx
+      aesop
+    · intro ⟨ f , f_rz ⟩
+      use (ap A.curry f) ⇓
+      intro x a px
+      use (by aesop)
+      intro b qx
+      have ⟨ d , rx ⟩ := f_rz x (_ ⇓) ⟨ a, b , rfl, px, qx ⟩
+      refine ⟨ ?_, ?_ ⟩
+      · simpa using d
+      · simpa using rx
 
-lemma himp_uncurry
-    {P Q R : Predicate α X}
-    : P ≤ (Q ⇨ R) → (P ⊓ Q ≤ R) := by
-  intro ⟨ f , f_rz ⟩
-  use (ap A.uncurry f) ⇓
-  intro x ax ⟨ l , r , eq , px , qx ⟩
-  have ⟨ d , qrx ⟩ := f_rz x l px
-  have ⟨ d' , rx ⟩ := qrx r qx
-  aesop
 
 /-!
 # Base Change
 -/
 
 @[aesop norm]
-def baseChange (f : X → Y) (P : Predicate α Y) : Predicate α X :=
+def baseChange
+    {α : Type u} {X : Type v} {Y : Type w} [PCA α]
+    (f : X → Y) (P : Predicate α Y) : Predicate α X :=
   fun x a => P (f x) a
 
 postfix:max "^*" => baseChange
@@ -314,7 +268,6 @@ lemma forall_beck_chevalley
     let w := pb.invFun ⟨ x , y, symm eq ⟩
     have ⟨ d , prw ⟩ := px w b (pb.fst_commute _)
     aesop
-
 
 /-!
 # Generic Objects
