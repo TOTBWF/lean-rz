@@ -18,6 +18,12 @@ open PAS
 
 def Predicate (α : Type u) [PCA α] (X : Type v) := X → Val α → Prop
 
+@[ext]
+lemma Predicate.ext  [PCA α] {P Q : Predicate α X} (h : ∀ x a, P x a ↔ Q x a) : P = Q := by
+  unfold Predicate
+  ext
+  apply h
+
 variable [A : PCA α]
 
 instance : Preorder (Predicate α X) where
@@ -158,7 +164,7 @@ lemma himp_uncurry
   aesop
 
 /-!
-# Functoriality
+# Base Change
 -/
 
 @[aesop norm]
@@ -166,6 +172,17 @@ def baseChange (f : X → Y) (P : Predicate α Y) : Predicate α X :=
   fun x a => P (f x) a
 
 postfix:max "^*" => baseChange
+
+@[simp]
+lemma base_change_id
+  {P : Predicate α X}
+  : id ^* P = P := by aesop
+
+@[simp]
+lemma base_change_comp
+  {P : Predicate α Z}
+  {f : Y → Z} {g : X → Y}
+  : (f ∘ g) ^* P = g^* (f^* P) := by aesop
 
 /-- Base change preserves chosen meets. -/
 lemma inf_base_change_le_base_change_inf
