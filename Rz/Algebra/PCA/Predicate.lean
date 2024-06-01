@@ -3,15 +3,15 @@ import Mathlib.Order.Notation
 import Mathlib.Tactic.Use
 
 import Rz.Algebra.PCA
-import Rz.Syntax.Subst
-import Rz.Syntax.HOL
+import Rz.Category.Pullback
 
 universe u v w
-variable {α X Y : Type u}
+variable {α W X Y Z : Type u}
 
 /-!
 # P(A) valued predicates.
 -/
+
 namespace PCA
 
 open PAS
@@ -130,6 +130,7 @@ lemma himp_uncurry
 # Functoriality
 -/
 
+@[aesop norm]
 def baseChange (f : X → Y) (P : Predicate α Y) : Predicate α X :=
   fun x a => P (f x) a
 
@@ -175,9 +176,11 @@ Existentials
 def Existential (f : X → Y) (P : Predicate α X) : Predicate α Y :=
   fun y a => ∃ (x : X), f x = y ∧ P x a
 
+scoped notation "⨿ " f:min ", " P:max => Existential f P
+
 lemma exists_intro
     {f : X → Y} {P : Predicate α X} {Q : Predicate α Y}
-    : P ≤ f^* Q → Existential f P ≤ Q := by
+    : P ≤ f^* Q → ⨿ f, P ≤ Q := by
   intro ⟨ a , a_rz ⟩
   use a
   rintro y b ⟨ x , rfl , pxb ⟩
@@ -185,18 +188,39 @@ lemma exists_intro
 
 lemma exists_elim
     {f : X → Y} {P : Predicate α X} {Q : Predicate α Y}
-    : Existential f P ≤ Q → P ≤ f^* Q := by
+    : ⨿ f, P ≤ Q → P ≤ f^* Q := by
   intro ⟨ a , a_rz ⟩
   use a
   intro x b pxb
   exact a_rz (f x) b ⟨ x , rfl, pxb ⟩
 
+lemma exists_map
+    {f : X → Y} {P Q : Predicate α X}
+    : P ≤ Q → ⨿ f, P ≤ ⨿ f, Q := by
+  intro ⟨ a , a_rz ⟩
+  use a
+  rintro y b ⟨ x , rfl , pxb ⟩
+  have ⟨ d , qxb ⟩ := a_rz x b pxb
+  refine ⟨ d, ⟨ x , rfl , qxb ⟩ ⟩
+
+lemma exists_beck_chevalley
+    {v : W → X} {r : W → Y} {s : X → Z} {u : Y → Z}
+    {P : Predicate α Y}
+    (pb : IsPullbackSquare v r s u)
+    : s^* (⨿ u, P) ≤ ⨿ v, (r^* P) := by
+  use A.id ⇓
+  intro x a ⟨ y , eq , py ⟩
+  let w := pb.invFun ⟨ x, y, symm eq ⟩
+  refine ⟨ ?_, ⟨ w , ?_, ?_ ⟩ ⟩ <;> aesop
+
 def Universal (f : X → Y) (P : Predicate α X) : Predicate α Y :=
   fun y a => ∀ (x : X) (b : Val α), (f x = y) → ∃ (h : A.ap a b ↓), P x ⟨ A.ap a b , h ⟩
 
+scoped notation "∏ " f:min ", " P:max => Universal f P
+
 lemma forall_intro
     {f : X → Y} {P : Predicate α Y} {Q : Predicate α X}
-    : f^* P ≤ Q → P ≤ Universal f Q := by
+    : f^* P ≤ Q → P ≤ ∏ f, Q := by
   intro ⟨ a , a_rz ⟩
   use («pca» fun x y => a x) ⇓
   intro y b pxb
@@ -208,10 +232,24 @@ lemma forall_intro
 
 lemma forall_elim
     {f : X → Y} {P : Predicate α Y} {Q : Predicate α X}
-    : P ≤ Universal f Q → f^* P ≤ Q := by
+    : P ≤ ∏ f, Q → f^* P ≤ Q := by
   intro ⟨ a , a_rz ⟩
   use («pca» fun x => a x A.const) ⇓
   intro x b pxb
   have ⟨ _ , pres_rz ⟩ := a_rz (f x) b pxb
   have ⟨ _ , qx ⟩ := pres_rz x (A.const ⇓) rfl
   aesop
+
+lemma forall_beck_chevalley
+    {v : W → X} {r : W → Y} {s : X → Z} {u : Y → Z}
+    {P : Predicate α Y}
+    (pb : IsPullbackSquare v r s u)
+    : ∏ v, (r^* P) ≤ s^* (∏ u, P) := by
+  use A.id ⇓
+  intro x a px
+  refine ⟨ ?_, ?_ ⟩
+  · aesop
+  · intro y b eq
+    let w := pb.invFun ⟨ x , y, symm eq ⟩
+    have ⟨ d , prw ⟩ := px w b (pb.fst_commute _)
+    aesop
