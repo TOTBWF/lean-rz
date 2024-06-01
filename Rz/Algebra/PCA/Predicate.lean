@@ -94,7 +94,6 @@ lemma sup_universal
     have ⟨ la_def , rx ⟩ := l_rz x la px
     aesop
   | Or.inr ⟨ ra, eq, qx ⟩ =>
-    rw [eq]
     have ⟨ ra_def , rx ⟩ := r_rz x ra qx
     aesop
 
@@ -128,11 +127,91 @@ lemma himp_uncurry
   aesop
 
 /-!
+# Functoriality
+-/
+
+def baseChange (f : X → Y) (P : Predicate α Y) : Predicate α X :=
+  fun x a => P (f x) a
+
+postfix:max "^*" => baseChange
+
+/-- Base change preserves chosen meets. -/
+lemma inf_base_change_le_base_change_inf
+  {f : X → Y} {P Q : Predicate α Y}
+  : (f^* P ⊓ f^* Q) ≤ f^* (P ⊓ Q) := by
+  use A.id ⇓
+  intro x a ⟨ l , r , eq , px , qx ⟩
+  refine ⟨ ?_, ⟨ l, r, ?_, px, qx ⟩ ⟩ <;> aesop
+
+/-- Base change preserves chosen joins. -/
+lemma base_change_sup_le_sup_base_change
+    {f : X → Y} {P Q : Predicate α Y}
+    : f^* (P ⊔ Q) ≤ (f^* P ⊔ f^* Q) := by
+  use A.id ⇓
+  intro x a pqx
+  match pqx with
+  | Or.inl ⟨ la, eq, px ⟩ =>
+    refine ⟨ ?_, Or.inl ⟨ la, ?_, px ⟩ ⟩ <;> aesop
+  | Or.inr ⟨ ra, eq, qx ⟩ =>
+    refine ⟨ ?_, Or.inr ⟨ ra, ?_, qx ⟩ ⟩ <;> aesop
+
+/-- Base change preserves heyting implication. -/
+lemma himp_base_change_le_base_change_himp
+    {f : X → Y} {P Q : Predicate α Y}
+    : (f^* P ⇨ f^* Q) ≤ f^* (P ⇨ Q) := by
+  use A.id ⇓
+  intro x a pqx
+  refine ⟨ ?_, ?_ ⟩
+  · aesop
+  · intro b px
+    have ⟨ _ , qx ⟩ := pqx b px
+    aesop
+
+
+/-!
 Existentials
 -/
 
 def Existential (f : X → Y) (P : Predicate α X) : Predicate α Y :=
   fun y a => ∃ (x : X), f x = y ∧ P x a
 
+lemma exists_intro
+    {f : X → Y} {P : Predicate α X} {Q : Predicate α Y}
+    : P ≤ f^* Q → Existential f P ≤ Q := by
+  intro ⟨ a , a_rz ⟩
+  use a
+  rintro y b ⟨ x , rfl , pxb ⟩
+  exact a_rz x b pxb
+
+lemma exists_elim
+    {f : X → Y} {P : Predicate α X} {Q : Predicate α Y}
+    : Existential f P ≤ Q → P ≤ f^* Q := by
+  intro ⟨ a , a_rz ⟩
+  use a
+  intro x b pxb
+  exact a_rz (f x) b ⟨ x , rfl, pxb ⟩
+
 def Universal (f : X → Y) (P : Predicate α X) : Predicate α Y :=
-  fun y a => ∀ (x : X) (b : Val α), (f x = y) ∧ ∃ (h : A.ap a b ↓), P x ⟨ A.ap a b , h ⟩
+  fun y a => ∀ (x : X) (b : Val α), (f x = y) → ∃ (h : A.ap a b ↓), P x ⟨ A.ap a b , h ⟩
+
+lemma forall_intro
+    {f : X → Y} {P : Predicate α Y} {Q : Predicate α X}
+    : f^* P ≤ Q → P ≤ Universal f Q := by
+  intro ⟨ a , a_rz ⟩
+  use («pca» fun x y => a x) ⇓
+  intro y b pxb
+  refine ⟨ ?_, ?_ ⟩
+  · aesop
+  · rintro x c rfl
+    have ⟨ _ , qxab ⟩ := a_rz x b pxb
+    aesop
+
+lemma forall_elim
+    {f : X → Y} {P : Predicate α Y} {Q : Predicate α X}
+    : P ≤ Universal f Q → f^* P ≤ Q := by
+  intro ⟨ a , a_rz ⟩
+  use («pca» fun x => a x A.const) ⇓
+  intro x b pxb
+  have ⟨ _ , pres_rz ⟩ := a_rz (f x) b pxb
+  have ⟨ _ , qx ⟩ := pres_rz x (A.const ⇓) rfl
+  aesop
