@@ -253,3 +253,28 @@ lemma forall_beck_chevalley
     let w := pb.invFun ⟨ x , y, symm eq ⟩
     have ⟨ d , prw ⟩ := px w b (pb.fst_commute _)
     aesop
+
+
+/-!
+# Generic Objects
+-/
+
+def Generic (α : Type u) [PCA α] : Type u := Val α → Prop
+
+notation "Ω" => Generic
+
+def Proof : Predicate α (Ω α) := fun P a => P a
+
+def classify (P : Predicate α X) : X → Ω α := fun x a => P x a
+
+def le_classify
+    {P : Predicate α X}
+    : P ≤ (classify P)^* Proof := by
+  use A.id ⇓
+  aesop
+
+def classify_le
+    {P : Predicate α X}
+    : (classify P)^* Proof ≤ P := by
+  use A.id ⇓
+  aesop
