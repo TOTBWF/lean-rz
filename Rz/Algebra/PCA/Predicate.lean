@@ -271,6 +271,19 @@ lemma forall_elim
   have ⟨ _ , qx ⟩ := pres_rz x (A.const ⇓) rfl
   aesop
 
+lemma forall_map
+    {f : X → Y} {P Q : Predicate α X}
+    : P ≤ Q → ∏ f, P ≤ ∏ f, Q := by
+  intro ⟨ a , a_rz ⟩
+  use («pca» fun x y => a (x y)) ⇓
+  intro y b pyb
+  simp
+  rintro x c rfl
+  simp
+  have ⟨ _ , pxbc ⟩ := pyb x c rfl
+  have ⟨ _ , qxbc ⟩ := a_rz _ _ pxbc
+  aesop
+
 lemma forall_beck_chevalley
     {v : W → X} {r : W → Y} {s : X → Z} {u : Y → Z}
     {P : Predicate α Y}
