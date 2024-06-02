@@ -31,7 +31,6 @@ structure IsPullbackSquare {P X Y Z : Type*} (p1 : P → X) (p2 : P → Y) (f : 
   left_inv : LeftInverse invFun (Pullback.univ p1 p2 square)
   right_inv : RightInverse invFun (Pullback.univ p1 p2 square)
 
-
 namespace IsPullbackSquare
 
 variable {P X Y Z : Type*} {p1 : P → X} {p2 : P → Y} {f : X → Z} {g : Y → Z}
@@ -45,7 +44,7 @@ variable {P X Y Z : Type*} {p1 : P → X} {p2 : P → Y} {f : X → Z} {g : Y �
 @[simp] lemma snd_commute
     (pb : IsPullbackSquare p1 p2 f g)
     (p : Pullback f g)
-    : p2 (pb.invFun p) = p.snd :=
-  congrArg Pullback.snd (pb.right_inv p)
+    : p1 (pb.invFun p) = p.fst :=
+  congrArg Pullback.fst (pb.right_inv p)
 
 end IsPullbackSquare
