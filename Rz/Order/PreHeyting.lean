@@ -204,6 +204,12 @@ protected def id : PreHeytingHom α α where
   inf_le_map' := by simp
   himp_le_map' := by simp
 
+@[simp]
+lemma coe_id : ⇑(PreHeytingHom.id α) = id := rfl
+
+@[simp]
+lemma id_apply (a : α) : PreHeytingHom.id α a = a := rfl
+
 variable {α}
 
 def comp (f : PreHeytingHom β γ) (g : PreHeytingHom α β) : PreHeytingHom α γ where
@@ -226,5 +232,11 @@ def comp (f : PreHeytingHom β γ) (g : PreHeytingHom α β) : PreHeytingHom α 
   himp_le_map' a b := calc
     f (g a) ⇨ f (g b) ≤ f (g a ⇨ g b) := himp_le_map f (g a) (g b)
     f (g a ⇨ g b) ≤ f (g (a ⇨ b))     := monotone f (himp_le_map g a b)
+
+@[simp]
+lemma coe_comp (f : PreHeytingHom β γ) (g : PreHeytingHom α β) : ⇑(f.comp g) = f ∘ g := rfl
+
+@[simp]
+lemma comp_apply (f : PreHeytingHom β γ) (g : PreHeytingHom α β) (a : α) : f.comp g a = f (g a) := rfl
 
 end PreHeytingHom

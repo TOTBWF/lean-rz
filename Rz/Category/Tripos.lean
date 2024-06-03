@@ -17,8 +17,8 @@ namespace CategoricalLogic
 
 open CategoryTheory Opposite
 
-class ExistentialDoctrine (F : Type u ᵒᵖ ⥤ PreHeyt) where
-  Exists : {X Y : Type u} → (f : X → Y) → F.obj (op X) → F.obj (op Y)
+class ExistentialDoctrine (F : Type u ᵒᵖ ⥤ PreHeyt.{v}) where
+  Exists : ⦃X Y : Type u⦄ → (f : X → Y) → F.obj (op X) → F.obj (op Y)
   exists_monotone : {X Y : Type u} → {f : X → Y} → Monotone (Exists f)
   exists_left_adj : {X Y : Type u} → {f : X → Y} → GaloisConnection (Exists f) (F.map (op f))
   exists_beck_chevalley :
@@ -26,8 +26,8 @@ class ExistentialDoctrine (F : Type u ᵒᵖ ⥤ PreHeyt) where
     IsPullbackSquare v r s u →
     F.map (op s) (Exists u P) ≤ Exists v (F.map (op r) P)
 
-class UniversalDoctrine (F : Type u ᵒᵖ ⥤ PreHeyt) where
-  Forall : {X Y : Type u} → (f : X → Y) → F.obj (op X) → F.obj (op Y)
+class UniversalDoctrine (F : Type u ᵒᵖ ⥤ PreHeyt.{v}) where
+  Forall : ⦃X Y : Type u⦄ → (f : X → Y) → F.obj (op X) → F.obj (op Y)
   forall_monotone : {X Y : Type u} → {f : X → Y} → Monotone (Forall f)
   forall_right_adj : {X Y : Type u} → {f : X → Y} → GaloisConnection (F.map (op f)) (Forall f)
   forall_beck_chevalley :
@@ -35,12 +35,16 @@ class UniversalDoctrine (F : Type u ᵒᵖ ⥤ PreHeyt) where
     IsPullbackSquare v r s u →
     Forall v (F.map (op r) P) ≤ F.map (op s) (Forall u P)
 
-class Tripos (F : Type u ᵒᵖ ⥤ PreHeyt) extends ExistentialDoctrine F, UniversalDoctrine F where
+class Tripos (F : Type u ᵒᵖ ⥤ PreHeyt.{v}) extends ExistentialDoctrine F, UniversalDoctrine F where
   Generic : Type u
   Proof : F.obj (op Generic)
   classify : {X : Type u} → F.obj (op X) → (X → Generic)
   le_proof : {X : Type u} → (P : F.obj (op X)) → P ≤ F.map (op (classify P)) Proof
   proof_le : {X : Type u} → (P : F.obj (op X)) → F.map (op (classify P)) Proof ≤ P
+
+
+/-!
+-/
 
 open Lean Syntax Meta Elab Parser
 

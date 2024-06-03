@@ -44,7 +44,7 @@ variable {P X Y Z : Type*} {p1 : P → X} {p2 : P → Y} {f : X → Z} {g : Y �
 @[simp] lemma snd_commute
     (pb : IsPullbackSquare p1 p2 f g)
     (p : Pullback f g)
-    : p1 (pb.invFun p) = p.fst :=
-  congrArg Pullback.fst (pb.right_inv p)
+    : p2 (pb.invFun p) = p.snd :=
+  congrArg Pullback.snd (pb.right_inv p)
 
 end IsPullbackSquare
