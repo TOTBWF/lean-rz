@@ -4,7 +4,6 @@ open Lake DSL
 package «lean-rz» where
   -- Settings applied to both builds and interactive editing
   leanOptions := #[
-    ⟨`pp.unicode.fun, true⟩, -- pretty-prints `fun a ↦ b`
     ⟨`pp.proofs.withType, false⟩,
     ⟨`autoImplicit, false⟩,
     ⟨`relaxedAutoImplicit, false⟩
@@ -12,8 +11,9 @@ package «lean-rz» where
   -- add any additional package configuration options here
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4.git"
+  "https://github.com/leanprover-community/mathlib4" @ "master"
+require batteries from git
+  "https://github.com/leanprover-community/batteries" @ "main"
 
 @[default_target]
 lean_lib «Rz» where
-  -- add any library configuration options here
