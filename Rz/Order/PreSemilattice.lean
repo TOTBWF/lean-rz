@@ -43,12 +43,16 @@ lemma le_inf_iff : a ≤ b ⊓ c ↔ a ≤ b ∧ a ≤ c :=
   , fun ⟨ h1 , h2 ⟩ => le_inf h1 h2
   ⟩
 
+lemma inf_mono : a ≤ c → b ≤ d → a ⊓ b ≤ c ⊓ d := by
+  intro h1 h2
+  simp; constructor
+  · exact le_trans inf_le_left h1
+  · exact le_trans inf_le_right h2
+
 end Pre
 
-class PreservesMeets
-    {α β : Type*}
-    [Preorder α] [PreInfSemilattice α] [Preorder β] [PreInfSemilattice β]
-    (f : α → β)
-    where
-  top_le_map : ⊤ ≤ f ⊤
-  inf_le_map : ∀ (a b : α), f a ⊓ f b ≤ f (a ⊓ b)
+def PreservesTop {α β : Type*} [Preorder α] [Top α] [Preorder β] [Top β] (f : α → β) : Prop :=
+  ⊤ ≤ f ⊤
+
+def PreservesInf {α β : Type*} [Preorder α] [Inf α] [Preorder β] [Inf β] (f : α → β) : Prop :=
+  ∀ {a b}, f a ⊓ f b ≤ f (a ⊓ b)

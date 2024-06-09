@@ -71,4 +71,10 @@ def hyp
     [SubCoe ξ σ ψ]
     : Φ ≤ ψ := le_trans h SubCoe.sub_le
 
+def begin
+    {Γ Δ : C} {Φ ψ : P Γ} {ξ : P Δ} {σ : Γ ⟶ Δ}
+    (h : Φ ≤ ψ)
+    [SubCoe ξ σ ψ]
+    : Φ ≤ ξ^* σ := le_trans h SubCoe.le_sub
+
 end Substitutions

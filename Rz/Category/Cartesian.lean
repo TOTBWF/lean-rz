@@ -76,7 +76,7 @@ end WithTerminal
 section WithProducts
 
 variable {C : Type*} [Cat : Category C] [Prod : WithProducts C]
-variable {Γ Δ X Y Z W : C}
+variable {Γ Δ Ψ X Y Z W : C}
 variable {f : X ⟶ Y} {g : X ⟶ Z}
 
 def pair_eta
@@ -142,6 +142,10 @@ lemma var_inst {x : Γ ⟶ X} : inst x ≫ var X = x := by
   simp [inst]
 
 @[simp_class, simp]
+lemma var_keep {σ : Γ ⟶ Δ} : keep σ ≫ var X = var X := by
+  simp [keep]
+
+@[simp_class, simp]
 lemma shift_inst {x : Γ ⟶ X} {y : Γ ⟶ Y} : inst x ≫ shift X y = y := by
   simp [inst, shift]
 
@@ -149,9 +153,19 @@ lemma shift_inst {x : Γ ⟶ X} {y : Γ ⟶ Y} : inst x ≫ shift X y = y := by
 lemma contr_keep {σ : Γ ⟶ Δ} : contr X ≫ keep (keep σ) = keep σ ≫ contr X := by
   simp [contr, keep]
 
-@[simp_class, simp]
 lemma wk_keep {σ : Γ ⟶ Δ} : wk X ≫ σ = keep σ ≫ wk X := by
   simp [keep, wk]
+
+@[simp]
+lemma keep_shift {σ : Γ ⟶ Δ} {δ : Δ ⟶ Ψ} : keep σ ≫ shift X δ = shift X (σ ≫ δ) := by
+  simp [shift, keep]
+
+instance
+    {σ : Γ ⟶ Δ} {δ : Δ ⟶ Ψ} {ρ : Γ ⟶ Ψ}
+    [S : Simp (σ ≫ δ) ρ]
+    : Simp (keep σ ≫ shift X δ) (shift X ρ) where
+  simplify := by
+    simp[S.simplify]
 
 end WithProducts
 
