@@ -34,14 +34,6 @@ instance (priority := 0) instDefaultSimp {α : Type u} {x : α} : Simp x x where
 section SimpClass
 syntax (name := simp_class) "simp_class" : attr
 
--- def getDeclEq (declInfo : ConstantInfo) : MetaM (Array Expr × Expr × Expr × Expr) := do
---     let declTy := declInfo.type
---     let (tele, _, declTy) ← withDefault <| forallMetaTelescopeReducing declTy
---     let failNotEq := throwError
---       "@[simp_class] attribute only applies to theorems proving x = y, got {declTy}"
---     let some (ty, lhs, rhs) := declTy.eq? | failNotEq
---     pure (tele, ty, lhs, rhs)
-
 initialize registerTraceClass `simp_class
 
 initialize registerBuiltinAttribute {
