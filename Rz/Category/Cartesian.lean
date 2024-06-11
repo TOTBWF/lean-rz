@@ -80,9 +80,14 @@ variable {Γ Δ Ψ X Y Z W : C}
 variable {f : X ⟶ Y} {g : X ⟶ Z}
 
 def pair_eta
-    {f : X ⟶ Y ⨯ Z}
+    (f : X ⟶ Y ⨯ Z)
     : f = ⟨f ≫ π₁; f ≫ π₂⟩ :=
   WithProducts.pair_unique rfl rfl
+
+@[simp]
+def pair_eta_id
+    : ⟨π₁; π₂⟩ = 𝟙 (X ⨯ Y) := by
+  apply symm (WithProducts.pair_unique _ _) <;> simp
 
 @[ext 1000]
 def pair_ext {f g : X ⟶ Y ⨯ Z}
@@ -91,27 +96,31 @@ def pair_ext {f g : X ⟶ Y ⨯ Z}
   rw [WithProducts.pair_unique h1 h2]
   rw [←pair_eta]
 
-@[simp_class, simp]
+@[simp]
 def pair_proj1 : ⟨f;g⟩ ≫ π₁ = f := WithProducts.pair_proj1
 
-@[simp_class, simp]
+@[simp]
 def pair_proj2 : ⟨f;g⟩ ≫ π₂ = g := WithProducts.pair_proj2
 
-@[simp_class, simp]
+@[simp]
 def pair_proj1_assoc {f : W ⟶ X} {g : W ⟶ Y} {h : X ⟶ Z} : ⟨f;g⟩ ≫ (π₁ ≫ h) = f ≫ h := by
   rw [←Category.assoc, pair_proj1]
 
-@[simp_class, simp]
+@[simp]
 def pair_proj2_assoc {f : W ⟶ X} {g : W ⟶ Y} {h : Y ⟶ Z} : ⟨f;g⟩ ≫ (π₂ ≫ h) = g ≫ h := by
   rw [←Category.assoc, pair_proj2]
+
+@[simp]
+lemma pair_comp {h : Γ ⟶ X} : h ≫ ⟨f;g⟩ = ⟨h ≫ f;h ≫ g⟩ := by
+  ext <;> simp
 
 /-!
 ### De Bruijn operations
 -/
 
-abbrev wk (X : C) : (Γ ⨯ X) ⟶ Γ := π₁
+def wk (X : C) : (Γ ⨯ X) ⟶ Γ := π₁
 
-abbrev var (X : C) : (Γ ⨯ X) ⟶ X := π₂
+def var (X : C) : (Γ ⨯ X) ⟶ X := π₂
 
 /-- Shift a de Bruijn variable up by one. -/
 def shift (Y : C) (f : Γ ⟶ X) : (Γ ⨯ Y) ⟶ X := π₁ ≫ f
@@ -125,47 +134,8 @@ def keep (f : Γ ⟶ Δ) : (Γ ⨯ X) ⟶ (Δ ⨯ X) := ⟨π₁ ≫ f; π₂⟩
 /-- Contraction. -/
 def contr (X : C) : Γ ⨯ X ⟶ Γ ⨯ X ⨯ X := ⟨⟨π₁; π₂⟩; π₂⟩
 
-@[simp]
-lemma pair_comp {h : Γ ⟶ X} : h ≫ ⟨f;g⟩ = ⟨h ≫ f;h ≫ g⟩ := by
-  ext <;> simp
-
-
-instance
-    {h : Γ ⟶ X} {hf : Γ ⟶ Y} {hg : Γ ⟶ Z}
-    [L : Simp (h ≫ f) hf] [R : Simp (h ≫ g) hg]
-    : Simp (h ≫ ⟨f;g⟩) ⟨hf; hg⟩ where
-  simplify := by
-    simp[L.simplify, R.simplify]
-
-@[simp_class, simp]
-lemma var_inst {x : Γ ⟶ X} : inst x ≫ var X = x := by
-  simp [inst]
-
-@[simp_class, simp]
-lemma var_keep {σ : Γ ⟶ Δ} : keep σ ≫ var X = var X := by
-  simp [keep]
-
-@[simp_class, simp]
-lemma shift_inst {x : Γ ⟶ X} {y : Γ ⟶ Y} : inst x ≫ shift X y = y := by
-  simp [inst, shift]
-
-@[simp_class, simp]
-lemma contr_keep {σ : Γ ⟶ Δ} : contr X ≫ keep (keep σ) = keep σ ≫ contr X := by
-  simp [contr, keep]
-
-lemma wk_keep {σ : Γ ⟶ Δ} : wk X ≫ σ = keep σ ≫ wk X := by
-  simp [keep, wk]
-
-@[simp]
-lemma keep_shift {σ : Γ ⟶ Δ} {δ : Δ ⟶ Ψ} : keep σ ≫ shift X δ = shift X (σ ≫ δ) := by
-  simp [shift, keep]
-
-instance
-    {σ : Γ ⟶ Δ} {δ : Δ ⟶ Ψ} {ρ : Γ ⟶ Ψ}
-    [S : Simp (σ ≫ δ) ρ]
-    : Simp (keep σ ≫ shift X δ) (shift X ρ) where
-  simplify := by
-    simp[S.simplify]
+/-- Exchange. -/
+def exchg (X Y : C) : Γ ⨯ X ⨯ Y ⟶ Γ ⨯ Y ⨯ X := ⟨⟨π₁ ≫ π₁; π₂⟩; π₁ ≫ π₂⟩
 
 end WithProducts
 
